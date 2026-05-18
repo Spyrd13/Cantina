@@ -1,13 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
-
-from sqlalchemy import Enum
+from datetime import datetime
 
 from app.utils.enums import TipoMovimentacao
-
-
-
-
 
 
 class MovimentacaoBaseCreate(BaseModel):
@@ -17,6 +12,7 @@ class MovimentacaoBaseCreate(BaseModel):
     tipo: TipoMovimentacao
     descricao: Optional[str] = None
 
+
 class MovimentacaoBaseUpdate(BaseModel):
     item_id: Optional[int] = None
     quantidade: Optional[int] = None
@@ -24,12 +20,23 @@ class MovimentacaoBaseUpdate(BaseModel):
     tipo: Optional[TipoMovimentacao] = None
     descricao: Optional[str] = None
 
+
 class MovimentacaoBaseResponse(BaseModel):
     id: int
+
     item_id: int
+    cliente_id: Optional[int] = None
+
     quantidade: int
+
     tipo: TipoMovimentacao
+
+    valor_unitario: float
+
+    data: datetime
+
     descricao: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True
+    )

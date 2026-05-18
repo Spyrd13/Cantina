@@ -3,7 +3,8 @@ from sqlmodel import Session
 from app.core.database import engine
 from app.views.items_view import ItemsView
 from app.views.clientes_view import ClientesView
-from app.views.movimentacoes_view import MovimentacoesView
+from app.views.vendas_view import VendasView        # ← atualizado
+from app.views.estoque_view import EstoqueView      # ← atualizado
 from app.views.financeiro_view import FinanceiroView
 
 def main(page: ft.Page):
@@ -11,9 +12,7 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
     page.spacing = 0
-   
 
-    # Conteúdo principal (lado direito)
     content = ft.Container(expand=True)
 
     def navegar(view):
@@ -24,9 +23,9 @@ def main(page: ft.Page):
         index = e.control.selected_index
         with Session(engine) as session:
             if index == 0:
-                navegar(MovimentacoesView(session, page, aba_inicial=0))  # Vendas
+                navegar(VendasView(session, page))    # ← atualizado
             elif index == 1:
-                navegar(MovimentacoesView(session, page, aba_inicial=1))  # Estoque
+                navegar(EstoqueView(session, page))   # ← atualizado
             elif index == 2:
                 navegar(ItemsView(session, page))
             elif index == 3:
@@ -43,12 +42,12 @@ def main(page: ft.Page):
         indicator_color=ft.Colors.BLUE_400,
         destinations=[
             ft.NavigationRailDestination(
-                icon=ft.Icons.SWAP_HORIZ_OUTLINED,
+                icon=ft.Icons.POINT_OF_SALE_OUTLINED,
                 selected_icon=ft.Icons.POINT_OF_SALE,
                 label="Vendas",
             ),
             ft.NavigationRailDestination(
-                icon=ft.Icons.SWAP_HORIZ_OUTLINED,
+                icon=ft.Icons.INVENTORY_2_OUTLINED,
                 selected_icon=ft.Icons.INVENTORY_2,
                 label="Estoque",
             ),
@@ -73,19 +72,15 @@ def main(page: ft.Page):
 
     # Carrega a primeira tela
     with Session(engine) as session:
-        content.content = MovimentacoesView(session, page, aba_inicial=0)
+        content.content = VendasView(session, page)  # ← atualizado
 
     page.add(
         ft.Row(
-            controls=[
-                nav,
-                ft.VerticalDivider(width=1),
-                content,
-            ],
+            controls=[nav, ft.VerticalDivider(width=1), content],
             expand=True,
             spacing=0,
         )
     )
 
 
-ft.app(target=main)
+ft.run(main)  # ← ft.run em vez de ft.app (evita o DeprecationWarning)

@@ -22,19 +22,30 @@ class MovimentacoesView(ft.Column):
         aba_vendas = self._build_vendas()
         aba_estoque = self._build_estoque()
 
-        tab_vendas = ft.Tab("Vendas")
-        tab_vendas.content = aba_vendas
-
-        tab_estoque = ft.Tab("Estoque")
-        tab_estoque.content = aba_estoque
-
         tabs = ft.Tabs(
+            length=2,
             selected_index=self._aba_inicial,
             expand=True,
-            
+            content=ft.Column(
+                expand=True,
+                controls=[
+                    ft.TabBar(
+                        tabs=[
+                            ft.Tab(label="Vendas"),
+                            ft.Tab(label="Estoque"),
+                        ]
+                    ),
+                    ft.TabBarView(
+                        expand=True,
+                        controls=[
+                            aba_vendas,
+                            aba_estoque,
+                        ],
+                    ),
+                ],
+            ),
         )
-        tabs=[tab_vendas, tab_estoque]
-        
+
         self.controls = [
             ft.Container(
                 content=tabs,
