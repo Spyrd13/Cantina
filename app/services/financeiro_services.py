@@ -31,8 +31,8 @@ class FinanceiroService:
     def listar_por_tipo(self, tipo: TipoFinanceiro) -> list[financeiroResponse]:
         return [financeiroResponse.model_validate(f) for f in self.repo.get_by_tipo(tipo)]
 
-    def listar_por_pagamento(self, tipo_pagamento: TipoPagamento) -> list[financeiroResponse]:
-        return [financeiroResponse.model_validate(f) for f in self.repo.get_by_pagamento(tipo_pagamento)]
+    def listar_por_pagamento(self, pagamento: TipoPagamento) -> list[financeiroResponse]:
+        return [financeiroResponse.model_validate(f) for f in self.repo.get_by_pagamento(pagamento)]
 
     def listar_por_movimentacao(self, movimentacao_id: int) -> list[financeiroResponse]:
         return [financeiroResponse.model_validate(f) for f in self.repo.get_by_movimentacao(movimentacao_id)]

@@ -17,4 +17,4 @@ class Cliente(SQLModel, table=True):
     telefone: Optional[str] = Field(default="")
 
 
-movimentacoes: list["Movimentacao"] = Relationship(back_populates="cliente")
+    movimentacoes: list["Movimentacao"] = Relationship(back_populates="cliente")

@@ -52,6 +52,7 @@ class EstoqueView(ft.Column):
             color=ft.Colors.WHITE,
         )
 
+        # Tabela mostra estoque atual (um item por linha)
         self.tabela_estoque = ft.DataTable(
             expand=True,
             border=ft.Border.all(1, ft.Colors.GREY_300),
@@ -59,10 +60,11 @@ class EstoqueView(ft.Column):
             column_spacing=20,
             columns=[
                 ft.DataColumn(ft.Text("Item", weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Tipo", weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Qtd", weight=ft.FontWeight.BOLD), numeric=True),
-                ft.DataColumn(ft.Text("Descrição", weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Data", weight=ft.FontWeight.BOLD)),
+                ft.DataColumn(
+                    ft.Text("Em Estoque", weight=ft.FontWeight.BOLD),
+                    numeric=True,
+                ),
+                ft.DataColumn(ft.Text("Situação", weight=ft.FontWeight.BOLD)),
             ],
             rows=[],
         )
@@ -72,16 +74,31 @@ class EstoqueView(ft.Column):
         self.controls = [
             ft.Container(
                 content=ft.Column([
-                    ft.Text("Movimentação de Estoque", size=20, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        "Movimentação de Estoque",
+                        size=20,
+                        weight=ft.FontWeight.BOLD,
+                    ),
                     ft.Divider(),
-                    ft.Row([self.dd_item_estoque, self.dd_tipo_estoque, self.field_qtd_estoque]),
+                    ft.Row([
+                        self.dd_item_estoque,
+                        self.dd_tipo_estoque,
+                        self.field_qtd_estoque,
+                    ]),
                     ft.Row([self.field_desc_estoque]),
                     self.msg_erro_estoque,
                     self.msg_ok_estoque,
                     ft.Row([btn_registrar]),
                     ft.Container(height=16),
-                    ft.Text("Histórico de Estoque", size=16, weight=ft.FontWeight.BOLD),
-                    ft.Row([self.tabela_estoque], scroll=ft.ScrollMode.AUTO),
+                    ft.Text(
+                        "Estoque Atual",
+                        size=16,
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Row(
+                        [self.tabela_estoque],
+                        scroll=ft.ScrollMode.AUTO,
+                    ),
                 ]),
                 padding=24,
                 expand=True,
@@ -128,32 +145,32 @@ class EstoqueView(ft.Column):
             self.msg_erro_estoque.value = str(ex)
             self._page.update()
 
-    def _carregar_tabela_estoque(self, movs=None):
-        if movs is None:
-            tipos = [TipoMovimentacao.entrada, TipoMovimentacao.ajuste, TipoMovimentacao.perda]
-            movs = []
-            for tipo in tipos:
-                movs += self.service.listar_por_tipo(tipo)
-            movs.sort(key=lambda m: m.data, reverse=True)
+    def _carregar_tabela_estoque(self):
+        """Mostra um item por linha com a quantidade atual em estoque."""
+        itens = self.item_service.listar_todos()
 
-        itens = {i.id: i.nome for i in self.item_service.listar_todos()}
+        self.tabela_estoque.rows = []
 
-        labels = {
-            TipoMovimentacao.entrada: "Entrada",
-            TipoMovimentacao.ajuste: "Ajuste",
-            TipoMovimentacao.perda: "Perda",
-        }
+        for item in itens:
+            qtd = item.quantidade  # campo direto no model Item
 
-        self.tabela_estoque.rows = [
-            ft.DataRow(cells=[
-                ft.DataCell(ft.Text(itens.get(m.item_id, str(m.item_id)))),
-                ft.DataCell(ft.Text(labels.get(m.tipo, m.tipo))),
-                ft.DataCell(ft.Text(str(m.quantidade))),
-                ft.DataCell(ft.Text(m.descricao or "")),
-                ft.DataCell(ft.Text(m.data.strftime("%d/%m/%Y %H:%M"))),
-            ])
-            for m in movs
-        ]
+            if qtd > 0:
+                situacao_texto = "✅ Disponível"
+                situacao_cor = ft.Colors.GREEN_700
+            else:
+                situacao_texto = "❌ Sem estoque"
+                situacao_cor = ft.Colors.RED_700
+
+            self.tabela_estoque.rows.append(
+                ft.DataRow(cells=[
+                    ft.DataCell(ft.Text(item.nome)),
+                    ft.DataCell(ft.Text(str(qtd))),
+                    ft.DataCell(
+                        ft.Text(situacao_texto, color=situacao_cor)
+                    ),
+                ])
+            )
+
         self._page.update()
 
     def _opcoes_itens(self) -> list:

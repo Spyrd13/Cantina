@@ -20,4 +20,4 @@ class Item(SQLModel, table=True):
    descricao: Optional[str] = Field(default="")
 
 
-movimentacoes: List["Movimentacao"] = Relationship(back_populates="item")
+   movimentacoes: List["Movimentacao"] = Relationship(back_populates="item")

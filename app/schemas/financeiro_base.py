@@ -14,7 +14,7 @@ class financeiroBase(BaseModel):
     valor: float
     descricao: Optional[str] = None
     pago: bool = False
-    tipo_pagamento: TipoPagamento
+    pagamento: TipoPagamento
 
 class financeiroCreate(financeiroBase):
     movimentacao_id: Optional[int] = None
@@ -23,7 +23,7 @@ class financeiroUpdate(BaseModel):
     tipo: Optional[TipoFinanceiro] = None
     valor: Optional[float] = None
     descricao: Optional[str] = None
-    tipo_pagamento: Optional[TipoPagamento] = None
+    pagamento: Optional[TipoPagamento] = None
     pago: Optional[bool] = None
     movimentacao_id: Optional[int] = None
 

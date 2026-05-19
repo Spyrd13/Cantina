@@ -25,10 +25,10 @@ class FinanceiroRepository:
         )
         return self.session.exec(statement).all()
 
-    def get_by_pagamento(self, tipo_pagamento: TipoPagamento) -> list[Financeiro]:
+    def get_by_pagamento(self, pagamento: TipoPagamento) -> list[Financeiro]:
         statement = (
             select(Financeiro)
-            .where(Financeiro.pagamento == tipo_pagamento)
+            .where(Financeiro.pagamento == pagamento)
             .order_by(Financeiro.data.desc())
         )
         return self.session.exec(statement).all()
@@ -60,7 +60,7 @@ class FinanceiroRepository:
     def create(self, dados: financeiroCreate) -> Financeiro:
         financeiro = Financeiro(
             tipo=dados.tipo,
-            pagamento=dados.tipo_pagamento,  # mapeia tipo_pagamento -> pagamento
+            pagamento=dados.pagamento,
             valor=dados.valor,
             descricao=dados.descricao or "",
             movimentacao_id=dados.movimentacao_id,
@@ -74,8 +74,8 @@ class FinanceiroRepository:
     def update(self, financeiro: Financeiro, dados: financeiroUpdate) -> Financeiro:
         campos = dados.model_dump(exclude_unset=True)
         # mapeia tipo_pagamento -> pagamento se vier no update
-        if "tipo_pagamento" in campos:
-            campos["pagamento"] = campos.pop("tipo_pagamento")
+        if "pagamento" in campos:
+            campos["pagamento"] = campos.pop("pagamento")
         for campo, valor in campos.items():
             setattr(financeiro, campo, valor)
         self.session.add(financeiro)

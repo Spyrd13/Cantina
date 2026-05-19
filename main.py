@@ -3,9 +3,10 @@ from sqlmodel import Session
 from app.core.database import engine
 from app.views.items_view import ItemsView
 from app.views.clientes_view import ClientesView
-from app.views.vendas_view import VendasView        # ← atualizado
-from app.views.estoque_view import EstoqueView      # ← atualizado
+from app.views.vendas_view import VendasView
+from app.views.estoque_view import EstoqueView
 from app.views.financeiro_view import FinanceiroView
+
 
 def main(page: ft.Page):
     page.title = "Cantina TUFI"
@@ -23,9 +24,9 @@ def main(page: ft.Page):
         index = e.control.selected_index
         with Session(engine) as session:
             if index == 0:
-                navegar(VendasView(session, page))    # ← atualizado
+                navegar(VendasView(session, page))
             elif index == 1:
-                navegar(EstoqueView(session, page))   # ← atualizado
+                navegar(EstoqueView(session, page))
             elif index == 2:
                 navegar(ItemsView(session, page))
             elif index == 3:
@@ -70,9 +71,8 @@ def main(page: ft.Page):
         on_change=on_nav_change,
     )
 
-    # Carrega a primeira tela
     with Session(engine) as session:
-        content.content = VendasView(session, page)  # ← atualizado
+        content.content = VendasView(session, page)
 
     page.add(
         ft.Row(
@@ -83,4 +83,4 @@ def main(page: ft.Page):
     )
 
 
-ft.run(main)  # ← ft.run em vez de ft.app (evita o DeprecationWarning)
+ft.run(main)
