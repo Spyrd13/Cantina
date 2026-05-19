@@ -137,39 +137,42 @@ class VendasView(ft.Column):
             ft.Container(
                 expand=True,
                 padding=20,
-                content=ft.Column([
+                content=ft.Column(
+                    expand=True,
+                    scroll=ft.ScrollMode.AUTO,   # ← aqui, na Column
+                    controls=[
 
-                    ft.Text("Vendas", size=24, weight=ft.FontWeight.BOLD),
-                    ft.Divider(),
+                        ft.Text("Vendas", size=24, weight=ft.FontWeight.BOLD),
+                        ft.Divider(),
 
-                    ft.Row([
-                        self.dd_item_venda,
-                        self.field_qtd_venda,
-                        btn_add_item,
-                    ]),
+                        ft.Row([
+                            self.dd_item_venda,
+                            self.field_qtd_venda,
+                            btn_add_item,
+                        ]),
 
-                    ft.Row([
-                        self.dd_pagamento,
-                        self.cb_pendurado,
-                    ]),
+                        ft.Row([
+                            self.dd_pagamento,
+                            self.cb_pendurado,
+                        ]),
 
-                    # CORREÇÃO 2: dentro de Row para ter largura e aparecer
-                    ft.Row([self.dd_cliente_venda]),
+                        ft.Row([self.dd_cliente_venda]),
 
-                    ft.Container(height=10),
+                        ft.Container(height=10),
 
-                    ft.Text("Pedido", size=18, weight=ft.FontWeight.BOLD),
-                    self.tabela_pedido,
-                    self.txt_total,
-                    self.msg_erro,
-                    self.msg_ok,
+                        ft.Text("Pedido", size=18, weight=ft.FontWeight.BOLD),
+                        self.tabela_pedido,
+                        self.txt_total,
+                        self.msg_erro,
+                        self.msg_ok,
 
-                    ft.Row([btn_finalizar]),
-                    ft.Divider(),
+                        ft.Row([btn_finalizar]),
+                        ft.Divider(),
 
-                    ft.Text("Histórico", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Row([self.tabela_vendas], scroll=ft.ScrollMode.AUTO),
-                ])
+                        ft.Text("Histórico", size=18, weight=ft.FontWeight.BOLD),
+                        self.tabela_vendas,   # ← tabela direto na Column, sem Row wrapper
+                    ]
+                )
             )
         ]
 
@@ -309,7 +312,7 @@ class VendasView(ft.Column):
             self.financeiro_service.registrar(
                 financeiroCreate(
                     tipo=TipoFinanceiro.receita,
-                    # CORREÇÃO 3: era tipo_pagamento= (campo não existe no schema)
+                    
                     pagamento=(
                         TipoPagamento.pix
                         if self.cb_pendurado.value
