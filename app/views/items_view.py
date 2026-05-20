@@ -15,7 +15,7 @@ class ItemsView(ft.Column):
     def _build(self):
         self.field_nome = ft.TextField(label="Nome", expand=True)
         self.field_valor = ft.TextField(label="Valor (R$)", width=150, keyboard_type=ft.KeyboardType.NUMBER)
-        self.field_quantidade = ft.TextField(label="Quantidade", width=150, keyboard_type=ft.KeyboardType.NUMBER)
+        
         self.field_descricao = ft.TextField(label="Descrição", expand=True)
         self.field_busca = ft.TextField(
             label="Buscar item...",
@@ -39,20 +39,7 @@ class ItemsView(ft.Column):
 
         self._item_editando_id = None
 
-        self.tabela = ft.DataTable(
-            expand=True,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
-            border_radius=8,
-            column_spacing=20,
-            columns=[
-                ft.DataColumn(ft.Text("Nome", weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Valor", weight=ft.FontWeight.BOLD), numeric=True),
-                ft.DataColumn(ft.Text("Qtd", weight=ft.FontWeight.BOLD), numeric=True),
-                ft.DataColumn(ft.Text("Descrição", weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Ações", weight=ft.FontWeight.BOLD)),
-            ],
-            rows=[],
-        )
+        self.tabela = ft.Container(expand=True)
 
         self.msg_erro = ft.Text("", color=ft.Colors.RED_400, size=13)
 
@@ -60,7 +47,7 @@ class ItemsView(ft.Column):
             content=ft.Column([
                 ft.Text("Itens do Cardápio", size=22, weight=ft.FontWeight.BOLD),
                 ft.Divider(),
-                ft.Row([self.field_nome, self.field_valor, self.field_quantidade]),
+                ft.Row([self.field_nome, self.field_valor]),
                 ft.Row([self.field_descricao]),
                 self.msg_erro,
                 ft.Row([self.btn_salvar, self.btn_cancelar]),
@@ -73,54 +60,191 @@ class ItemsView(ft.Column):
 
         self.controls = [
             ft.Container(
-                content=ft.Column([
-                    formulario,
-                    ft.Container(height=16),
-                    ft.Row([self.field_busca]),
-                    ft.Container(height=8),
-                    ft.Row(
-                        [self.tabela],
-                        scroll=ft.ScrollMode.AUTO,
-                    ),
-                ]),
-                padding=24,
                 expand=True,
+                padding=24,
+                content=ft.Column(
+                    expand=True,
+                    controls=[
+                        formulario,
+                        ft.Container(height=16),
+                        ft.Row([self.field_busca]),
+                        ft.Container(height=8),
+                        self.tabela,
+                    ],
+                ),
             )
         ]
 
         self._carregar_tabela()
 
     def _carregar_tabela(self, itens=None):
+
         if itens is None:
             itens = self.service.listar_todos()
 
-        self.tabela.rows = [
-            ft.DataRow(cells=[
-                ft.DataCell(ft.Text(item.nome)),
-                ft.DataCell(ft.Text(f"R$ {item.valor:.2f}")),
-                ft.DataCell(ft.Text(str(item.quantidade or 0))),
-                ft.DataCell(ft.Text(item.descricao or "")),
-                ft.DataCell(
-                    ft.Row([
-                        ft.IconButton(
-                            ft.Icons.EDIT,
-                            tooltip="Editar",
-                            icon_color=ft.Colors.BLUE_600,
-                            data=item.id,
-                            on_click=self._editar,
+        rows = []
+
+        for item in itens:
+
+            row = ft.Container(
+                padding=10,
+                on_hover=self._hover_row,
+                content=ft.Row(
+                    spacing=8,
+                    controls=[
+
+                        ft.Container(
+                            expand=True,
+                            content=ft.Text(
+                                item.nome,
+                                weight=ft.FontWeight.BOLD,
+                            ),
                         ),
-                        ft.IconButton(
-                            ft.Icons.DELETE,
-                            tooltip="Remover",
-                            icon_color=ft.Colors.RED_400,
-                            data=item.id,
-                            on_click=self._confirmar_remover,
+
+                        ft.Container(
+                            width=120,
+                            content=ft.Text(
+                                f"R$ {item.valor:.2f}",
+                            ),
                         ),
-                    ])
+
+                        ft.Container(
+                            expand=True,
+                            content=ft.Text(
+                                item.descricao or "-",
+                                color=ft.Colors.GREY_700,
+                            ),
+                        ),
+
+                        ft.Container(
+                            width=120,
+                            content=ft.Row(
+                                spacing=0,
+                                controls=[
+                                    ft.IconButton(
+                                        ft.Icons.EDIT,
+                                        tooltip="Editar",
+                                        icon_color=ft.Colors.BLUE_600,
+                                        data=item.id,
+                                        on_click=self._editar,
+                                    ),
+
+                                    ft.IconButton(
+                                        ft.Icons.DELETE,
+                                        tooltip="Remover",
+                                        icon_color=ft.Colors.RED_400,
+                                        data=item.id,
+                                        on_click=self._confirmar_remover,
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ],
                 ),
-            ])
-            for item in itens
-        ]
+            )
+
+            rows.append(row)
+
+            if item != itens[-1]:
+                rows.append(
+                    ft.Divider(
+                        height=1,
+                        thickness=0.5,
+                        color=ft.Colors.GREY_200,
+                    )
+                )
+
+        if not rows:
+            rows = [
+                ft.Container(
+                    padding=20,
+                    content=ft.Text(
+                        "Nenhum item encontrado.",
+                        color=ft.Colors.GREY_500,
+                    ),
+                )
+            ]
+
+        header = ft.Container(
+            bgcolor=ft.Colors.GREY_100,
+            padding=10,
+            content=ft.Row(
+                spacing=8,
+                controls=[
+
+                    ft.Container(
+                        expand=True,
+                        content=ft.Text(
+                            "Nome",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=120,
+                        content=ft.Text(
+                            "Valor",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        expand=True,
+                        content=ft.Text(
+                            "Descrição",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=120,
+                        content=ft.Text(
+                            "Ações",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
+        tabela = ft.Container(
+            expand=True,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.Border(
+                left=ft.BorderSide(1, ft.Colors.GREY_300),
+                top=ft.BorderSide(1, ft.Colors.GREY_300),
+                right=ft.BorderSide(1, ft.Colors.GREY_300),
+                bottom=ft.BorderSide(1, ft.Colors.GREY_300),
+            ),
+            border_radius=10,
+            content=ft.Column(
+                spacing=0,
+                controls=[
+                    header,
+
+                    ft.Container(
+                        expand=True,
+                        content=ft.Column(
+                            scroll=ft.ScrollMode.AUTO,
+                            spacing=0,
+                            expand=True,
+                            controls=rows,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
+        self.tabela.content = tabela
+
         self._page.update()
 
     def _on_busca(self, e):
@@ -134,7 +258,7 @@ class ItemsView(ft.Column):
     def _limpar_form(self):
         self.field_nome.value = ""
         self.field_valor.value = ""
-        self.field_quantidade.value = ""
+        
         self.field_descricao.value = ""
         self.msg_erro.value = ""
         self._item_editando_id = None
@@ -152,9 +276,9 @@ class ItemsView(ft.Column):
 
         try:
             valor = float(self.field_valor.value.replace(",", "."))
-            quantidade = int(self.field_quantidade.value or 0)
+            
         except ValueError:
-            self.msg_erro.value = "Valor ou quantidade inválidos."
+            self.msg_erro.value = "Valor inválidos."
             self._page.update()
             return
 
@@ -163,7 +287,7 @@ class ItemsView(ft.Column):
                 self.service.cadastrar(ItemBaseCreate(
                     nome=nome,
                     valor=valor,
-                    quantidade=quantidade,
+                    
                     descricao=descricao or None,
                 ))
             else:
@@ -172,7 +296,7 @@ class ItemsView(ft.Column):
                     ItemBaseUpdate(
                         nome=nome,
                         valor=valor,
-                        quantidade=quantidade,
+                        
                         descricao=descricao or None,
                     ),
                 )
@@ -189,7 +313,7 @@ class ItemsView(ft.Column):
         self._item_editando_id = item.id
         self.field_nome.value = item.nome
         self.field_valor.value = str(item.valor)
-        self.field_quantidade.value = str(item.quantidade or 0)
+        
         self.field_descricao.value = item.descricao or ""
         self.btn_salvar.text = "Atualizar"
         self.btn_cancelar.visible = True
@@ -231,3 +355,12 @@ class ItemsView(ft.Column):
         self._page.overlay.append(dialog)
         dialog.open = True
         self._page.update()
+        
+    def _hover_row(self, e):
+        e.control.bgcolor = (
+            ft.Colors.GREY_50
+            if e.data == "true"
+            else None
+        )
+
+        e.control.update()

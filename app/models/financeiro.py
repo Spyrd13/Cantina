@@ -1,11 +1,15 @@
 from sqlmodel import Field, SQLModel
 from typing import Optional
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from app.utils.enums import TipoFinanceiro, TipoPagamento
 
+BRASILIA = timezone(timedelta(hours=-3))
 
+
+def agora_brasilia() -> datetime:
+    return datetime.now(BRASILIA).replace(tzinfo=None)
 
 class Financeiro(SQLModel, table=True):
     __tablename__ = "financeiros"
@@ -16,5 +20,5 @@ class Financeiro(SQLModel, table=True):
     pagamento: TipoPagamento
     valor: float
     pago: bool = Field(default=False)
-    data: datetime = Field(default_factory=datetime.utcnow)
+    data: datetime = Field(default_factory=agora_brasilia)
     descricao: Optional[str] = Field(default="")

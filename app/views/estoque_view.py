@@ -24,12 +24,36 @@ class EstoqueView(ft.Column):
         self.dd_tipo_estoque = ft.Dropdown(
             label="Tipo",
             width=200,
+            value=TipoMovimentacao.entrada.value,
             options=[
-                ft.dropdown.Option(key=TipoMovimentacao.entrada, text="Entrada"),
-                ft.dropdown.Option(key=TipoMovimentacao.ajuste, text="Ajuste"),
-                ft.dropdown.Option(key=TipoMovimentacao.perda, text="Perda"),
+                ft.dropdown.Option(
+                    key=TipoMovimentacao.entrada.value,
+                    text="Entrada",
+                ),
+                ft.dropdown.Option(
+                    key=TipoMovimentacao.ajuste.value,
+                    text="Ajuste",
+                ),
+                ft.dropdown.Option(
+                    key=TipoMovimentacao.perda.value,
+                    text="Perda",
+                ),
             ],
         )
+
+        self.dd_tipo_estoque.on_change = self._on_tipo_change
+
+        
+
+        self.field_valor_pago = ft.TextField(
+            label="Valor pago (R$)",
+            width=180,
+            visible=True,
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
+
+        self._on_tipo_change(None)
+
         self.field_qtd_estoque = ft.TextField(
             label="Quantidade",
             width=150,
@@ -53,21 +77,7 @@ class EstoqueView(ft.Column):
         )
 
         # Tabela mostra estoque atual (um item por linha)
-        self.tabela_estoque = ft.DataTable(
-            expand=True,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
-            border_radius=8,
-            column_spacing=20,
-            columns=[
-                ft.DataColumn(ft.Text("Item", weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(
-                    ft.Text("Em Estoque", weight=ft.FontWeight.BOLD),
-                    numeric=True,
-                ),
-                ft.DataColumn(ft.Text("Situação", weight=ft.FontWeight.BOLD)),
-            ],
-            rows=[],
-        )
+        self.tabela_estoque = ft.Column(expand=True)
 
         self._carregar_tabela_estoque()
 
@@ -84,6 +94,7 @@ class EstoqueView(ft.Column):
                         self.dd_item_estoque,
                         self.dd_tipo_estoque,
                         self.field_qtd_estoque,
+                        self.field_valor_pago,
                     ]),
                     ft.Row([self.field_desc_estoque]),
                     self.msg_erro_estoque,
@@ -95,10 +106,7 @@ class EstoqueView(ft.Column):
                         size=16,
                         weight=ft.FontWeight.BOLD,
                     ),
-                    ft.Row(
-                        [self.tabela_estoque],
-                        scroll=ft.ScrollMode.AUTO,
-                    ),
+                    self.tabela_estoque,
                 ]),
                 padding=24,
                 expand=True,
@@ -118,6 +126,19 @@ class EstoqueView(ft.Column):
             self.msg_erro_estoque.value = "Selecione o tipo de movimentação."
             self._page.update()
             return
+        
+        valor_pago = None
+
+        if self.dd_tipo_estoque.value == TipoMovimentacao.entrada.value:
+
+            try:
+                valor_pago = float(
+                    self.field_valor_pago.value.replace(",", ".")
+                )
+            except:
+                self.msg_erro_estoque.value = "Valor inválido."
+                self._page.update()
+                return
 
         try:
             quantidade = int(self.field_qtd_estoque.value or 0)
@@ -134,42 +155,187 @@ class EstoqueView(ft.Column):
                 quantidade=quantidade,
                 tipo=TipoMovimentacao(self.dd_tipo_estoque.value),
                 descricao=self.field_desc_estoque.value.strip() or None,
+                valor_pago=valor_pago,
             ))
             self.msg_ok_estoque.value = "Movimentação registrada com sucesso!"
             self.dd_item_estoque.value = None
             self.dd_tipo_estoque.value = None
             self.field_qtd_estoque.value = "1"
             self.field_desc_estoque.value = ""
+            self.field_valor_pago.value = None
             self._carregar_tabela_estoque()
         except ValueError as ex:
             self.msg_erro_estoque.value = str(ex)
             self._page.update()
 
     def _carregar_tabela_estoque(self):
-        """Mostra um item por linha com a quantidade atual em estoque."""
         itens = self.item_service.listar_todos()
 
-        self.tabela_estoque.rows = []
+        rows = []
 
         for item in itens:
-            qtd = item.quantidade  # campo direto no model Item
+            qtd = item.quantidade
 
             if qtd > 0:
-                situacao_texto = "✅ Disponível"
-                situacao_cor = ft.Colors.GREEN_700
+                if qtd <= 5:
+                    situacao_texto = "Pouco estoque"
+                    situacao_cor = ft.Colors.ORANGE_700
+                    situacao_bg = ft.Colors.ORANGE_50
+                    situacao_icon = ft.Icons.WARNING_AMBER
+                else:
+                    situacao_texto = "Disponível"
+                    situacao_cor = ft.Colors.GREEN_700
+                    situacao_bg = ft.Colors.GREEN_50
+                    situacao_icon = ft.Icons.CHECK_CIRCLE
             else:
-                situacao_texto = "❌ Sem estoque"
+                situacao_texto = "Sem estoque"
                 situacao_cor = ft.Colors.RED_700
+                situacao_bg = ft.Colors.RED_50
+                situacao_icon = ft.Icons.CANCEL
 
-            self.tabela_estoque.rows.append(
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(item.nome)),
-                    ft.DataCell(ft.Text(str(qtd))),
-                    ft.DataCell(
-                        ft.Text(situacao_texto, color=situacao_cor)
-                    ),
-                ])
+            badge = ft.Container(
+                bgcolor=situacao_bg,
+                border_radius=6,
+                padding=ft.Padding(
+                    left=8,
+                    top=3,
+                    right=8,
+                    bottom=3,
+                ),
+                content=ft.Row(
+                    spacing=4,
+                    tight=True,
+                    controls=[
+                        ft.Icon(
+                            situacao_icon,
+                            size=13,
+                            color=situacao_cor,
+                        ),
+                        ft.Text(
+                            situacao_texto,
+                            size=12,
+                            color=situacao_cor,
+                        ),
+                    ],
+                ),
             )
+
+            row = ft.Container(
+                padding=10,
+                on_hover=self._hover_row,
+                content=ft.Row(
+                    spacing=8,
+                    controls=[
+                        ft.Container(
+                            content=ft.Text(item.nome),
+                            expand=True,
+                        ),
+
+                        ft.Container(
+                            width=200,
+                            content=ft.Text(
+                                str(qtd),
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                        ),
+
+                        ft.Container(
+                            width=270,
+                            content=badge,
+                        ),
+                    ],
+                ),
+            )
+
+            rows.append(row)
+
+            if item != itens[-1]:
+                rows.append(
+                    ft.Divider(
+                        height=1,
+                        thickness=0.5,
+                        color=ft.Colors.GREY_200,
+                    )
+                )
+
+        if not rows:
+            rows = [
+                ft.Container(
+                    padding=20,
+                    content=ft.Text(
+                        "Nenhum item encontrado.",
+                        color=ft.Colors.GREY_500,
+                    ),
+                )
+            ]
+
+        header = ft.Container(
+            bgcolor=ft.Colors.GREY_100,
+            padding=10,
+            content=ft.Row(
+                spacing=8,
+                controls=[
+                    ft.Container(
+                        expand=True,
+                        content=ft.Text(
+                            "Item",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=200,
+                        content=ft.Text(
+                            "Estoque",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=270,
+                        content=ft.Text(
+                            "Situação",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
+        tabela = ft.Container(
+            expand=True,
+            border=ft.Border(
+                left=ft.BorderSide(1, ft.Colors.GREY_300),
+                top=ft.BorderSide(1, ft.Colors.GREY_300),
+                right=ft.BorderSide(1, ft.Colors.GREY_300),
+                bottom=ft.BorderSide(1, ft.Colors.GREY_300),
+            ),
+            border_radius=10,
+            bgcolor=ft.Colors.WHITE,
+            content=ft.Column(
+                spacing=0,
+                controls=[
+                    header,
+
+                    ft.Container(
+                        height=350,
+                        content=ft.Column(
+                            scroll=ft.ScrollMode.AUTO,
+                            spacing=0,
+                            controls=rows,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
+        self.tabela_estoque.controls = [tabela]
 
         self._page.update()
 
@@ -179,3 +345,21 @@ class EstoqueView(ft.Column):
             ft.dropdown.Option(key=str(i.id), text=f"{i.nome} (R$ {i.valor:.2f})")
             for i in itens
         ]
+    
+    def _hover_row(self, e):
+        e.control.bgcolor = (
+            ft.Colors.GREY_50
+            if e.data == "true"
+            else None
+        )
+
+        e.control.update()
+
+    def _on_tipo_change(self, e):
+
+        self.field_valor_pago.visible = (
+            self.dd_tipo_estoque.value
+            == TipoMovimentacao.entrada.value
+        )
+
+        self._page.update()

@@ -9,6 +9,7 @@ class MovimentacaoBaseCreate(BaseModel):
     item_id: int
     quantidade: int
     cliente_id: Optional[int] = None
+    valor_pago: Optional[float] = None
     tipo: TipoMovimentacao
     descricao: Optional[str] = None
 
@@ -16,6 +17,7 @@ class MovimentacaoBaseCreate(BaseModel):
 class MovimentacaoBaseUpdate(BaseModel):
     item_id: Optional[int] = None
     quantidade: Optional[int] = None
+    valor_pago: Optional[float] = None
     cliente_id: Optional[int] = None
     tipo: Optional[TipoMovimentacao] = None
     descricao: Optional[str] = None
@@ -32,6 +34,8 @@ class MovimentacaoBaseResponse(BaseModel):
     tipo: TipoMovimentacao
 
     valor_unitario: float
+
+    valor_pago: Optional[float] = None
 
     data: datetime
 

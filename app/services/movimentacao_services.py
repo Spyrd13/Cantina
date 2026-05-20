@@ -10,7 +10,9 @@ from app.schemas.movimentacao_base import (
     MovimentacaoBaseResponse,
 )
 from app.models.movimentacao import Movimentacao
-from app.utils.enums import TipoMovimentacao
+from app.utils.enums import TipoMovimentacao, TipoFinanceiro,  TipoPagamento
+from app.services.financeiro_services import FinanceiroService
+from app.schemas.financeiro_base import financeiroCreate
 
 
 class MovimentacaoService:
@@ -18,6 +20,7 @@ class MovimentacaoService:
         self.repo = MovimentacaoRepository(session)
         self.item_repo = ItemRepository(session)
         self.cliente_repo = ClienteRepository(session)
+        self.financeiro_service = FinanceiroService(session)
 
     # ------------------------------------------------------------------ #
     #  Consultas                                                           #
@@ -49,48 +52,133 @@ class MovimentacaoService:
     # ------------------------------------------------------------------ #
 
     def registrar(self, dados: MovimentacaoBaseCreate) -> MovimentacaoBaseResponse:
-        # Valida e busca o item para pegar o valor_unitario
+
         item = self.item_repo.get_by_id(dados.item_id)
+
         if not item:
-            raise ValueError(f"Item com id {dados.item_id} não encontrado.")
+            raise ValueError(
+                f"Item com id {dados.item_id} não encontrado."
+            )
 
         if dados.quantidade <= 0:
-            raise ValueError("A quantidade deve ser positiva.")
+            raise ValueError(
+                "A quantidade deve ser positiva."
+            )
 
-        # Valida cliente se informado
+        cliente = None
+
         if dados.cliente_id is not None:
-            cliente = self.cliente_repo.get_by_id(dados.cliente_id)
-            if not cliente:
-                raise ValueError(f"Cliente com id {dados.cliente_id} não encontrado.")
+            cliente = self.cliente_repo.get_by_id(
+                dados.cliente_id
+            )
 
-        # Ajusta estoque conforme o tipo
-        if dados.tipo in (TipoMovimentacao.saida, TipoMovimentacao.perda):
+            if not cliente:
+                raise ValueError(
+                    f"Cliente com id {dados.cliente_id} não encontrado."
+                )
+
+        # =========================================================
+        # SAÍDA / PERDA
+        # =========================================================
+
+        if dados.tipo in (
+            TipoMovimentacao.saida,
+            TipoMovimentacao.perda,
+        ):
+
             if (item.quantidade or 0) < dados.quantidade:
                 raise ValueError(
                     f"Estoque insuficiente para '{item.nome}'. "
-                    f"Disponível: {item.quantidade}, solicitado: {dados.quantidade}."
+                    f"Disponível: {item.quantidade}, "
+                    f"solicitado: {dados.quantidade}."
                 )
+
             item.quantidade -= dados.quantidade
 
+        # =========================================================
+        # ENTRADA
+        # =========================================================
+
         elif dados.tipo == TipoMovimentacao.entrada:
-            item.quantidade = (item.quantidade or 0) + dados.quantidade
+
+            item.quantidade = (
+                item.quantidade or 0
+            ) + dados.quantidade
+
+            # Gera despesa automaticamente
+            if dados.valor_pago is not None:
+
+                self.financeiro_service.registrar(
+                    financeiroCreate(
+                        tipo=TipoFinanceiro.despesa,
+                        pagamento=TipoPagamento.pix,
+                        valor=dados.valor_pago,
+                        descricao=f"Compra de estoque - {item.nome}",
+                        movimentacao_id=None,
+                    )
+                )
+
+        # =========================================================
+        # AJUSTE
+        # =========================================================
 
         elif dados.tipo == TipoMovimentacao.ajuste:
-            # Ajuste define a quantidade absoluta
+
             item.quantidade = dados.quantidade
 
-        # Persiste alteração do estoque
+        # =========================================================
+        # PERDA = prejuízo financeiro
+        # =========================================================
+
+        if dados.tipo == TipoMovimentacao.perda:
+
+            valor_perda = float(item.valor) * dados.quantidade
+
+            self.financeiro_service.registrar(
+                financeiroCreate(
+                    tipo=TipoFinanceiro.despesa,
+                    pagamento=TipoPagamento.pix,
+                    valor=valor_perda,
+                    descricao=f"Perda de estoque - {item.nome}",
+                    movimentacao_id=None,
+                )
+            )
+
+        # =========================================================
+        # Atualiza estoque
+        # =========================================================
+
         self.item_repo.session.add(item)
         self.item_repo.session.commit()
 
-        # Se for saída com cliente vinculado, debita o saldo devedor
-        if dados.tipo == TipoMovimentacao.saida and dados.cliente_id is not None:
-            valor_total = item.valor * dados.quantidade
-            self.cliente_repo.update_saldo(cliente, valor_total)
+        # =========================================================
+        # Cliente pendurado
+        # =========================================================
 
-        # Cria a movimentação com o valor_unitario do item
-        movimentacao = self.repo.create(dados, valor_unitario=item.valor)
-        return MovimentacaoBaseResponse.model_validate(movimentacao)
+        if (
+            dados.tipo == TipoMovimentacao.saida
+            and cliente is not None
+        ):
+
+            valor_total = item.valor * dados.quantidade
+
+            self.cliente_repo.update_saldo(
+                cliente,
+                valor_total,
+            )
+
+        # =========================================================
+        # Cria movimentação
+        # =========================================================
+
+        movimentacao = self.repo.create(
+            dados,
+            valor_unitario=item.valor,
+        )
+
+        return MovimentacaoBaseResponse.model_validate(
+            movimentacao
+        )
 
     def atualizar(self, movimentacao_id: int, dados: MovimentacaoBaseUpdate) -> MovimentacaoBaseResponse:
         mov = self._get_or_raise(movimentacao_id)

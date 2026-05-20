@@ -20,33 +20,30 @@ from app.utils.enums import (
 # ============================================================
 
 def _badge(texto, bg, fg, icon):
-
     return ft.Container(
         border_radius=6,
         bgcolor=bg,
-        padding=ft.padding.symmetric(
-            horizontal=8,
-            vertical=3,
+        padding=ft.Padding(
+            left=8,
+            top=3,
+            right=8,
+            bottom=3,
         ),
-
         content=ft.Row(
             spacing=4,
             tight=True,
-
             controls=[
                 ft.Icon(icon, size=13, color=fg),
                 ft.Text(texto, size=12, color=fg),
-            ]
-        )
+            ],
+        ),
     )
 
 
 def _badge_tipo(valor):
-
     v = valor.lower()
 
     if v == "receita":
-
         return _badge(
             valor,
             ft.Colors.GREEN_50,
@@ -55,7 +52,6 @@ def _badge_tipo(valor):
         )
 
     if v == "despesa":
-
         return _badge(
             valor,
             ft.Colors.RED_50,
@@ -72,7 +68,6 @@ def _badge_tipo(valor):
 
 
 def _badge_pag(valor):
-
     mapa = {
         "pix": ft.Icons.PIX,
         "dinheiro": ft.Icons.ATTACH_MONEY,
@@ -91,7 +86,6 @@ def _badge_pag(valor):
 
 
 def _cell(content, width=None, expand=False):
-
     return ft.Container(
         content=content,
         width=width,
@@ -100,28 +94,22 @@ def _cell(content, width=None, expand=False):
 
 
 def _hover_row(e):
-
     e.control.bgcolor = (
         ft.Colors.GREY_50
         if e.data == "true"
         else None
     )
 
+    e.control.update()
+
 
 def _header_row(cols):
-
     return ft.Container(
-
         bgcolor=ft.Colors.GREY_100,
-
         padding=10,
-
         content=ft.Row(
-
             spacing=8,
-
             controls=[
-
                 _cell(
                     ft.Text(
                         label,
@@ -129,56 +117,28 @@ def _header_row(cols):
                         weight=ft.FontWeight.BOLD,
                         color=ft.Colors.GREY_700,
                     ),
-
                     width=width,
                     expand=(width is None),
                 )
-
                 for label, width in cols
-            ]
-        )
+            ],
+        ),
     )
 
 
 def _row_financeiro(r):
-
-    tipo = str(
-        getattr(r.tipo, "value", r.tipo)
-    ).capitalize()
-
-    pag = str(
-        getattr(r.pagamento, "value", r.pagamento)
-    ).capitalize()
+    tipo = str(getattr(r.tipo, "value", r.tipo)).capitalize()
+    pag = str(getattr(r.pagamento, "value", r.pagamento)).capitalize()
 
     return ft.Container(
-
         padding=10,
-
         on_hover=_hover_row,
-
         content=ft.Row(
-
             spacing=8,
-
             controls=[
-
-                _cell(
-                    _badge_tipo(tipo),
-                    width=110,
-                ),
-
-                _cell(
-                    _badge_pag(pag),
-                    width=110,
-                ),
-
-                _cell(
-                    ft.Text(
-                        f"R$ {r.valor:.2f}"
-                    ),
-                    width=90,
-                ),
-
+                _cell(_badge_tipo(tipo), width=110),
+                _cell(_badge_pag(pag), width=110),
+                _cell(ft.Text(f"R$ {r.valor:.2f}"), width=90),
                 _cell(
                     ft.Text(
                         r.descricao or "-",
@@ -186,7 +146,6 @@ def _row_financeiro(r):
                     ),
                     expand=True,
                 ),
-
                 _cell(
                     ft.Text(
                         r.data.strftime("%d/%m/%Y %H:%M"),
@@ -195,30 +154,19 @@ def _row_financeiro(r):
                     ),
                     width=130,
                 ),
-            ]
-        )
+            ],
+        ),
     )
 
 
 def _row_pendurado(m, cliente, item):
-
     return ft.Container(
-
         padding=10,
-
         on_hover=_hover_row,
-
         content=ft.Row(
-
             spacing=8,
-
             controls=[
-
-                _cell(
-                    ft.Text(cliente),
-                    width=160,
-                ),
-
+                _cell(ft.Text(cliente), width=160),
                 _cell(
                     ft.Text(
                         item,
@@ -226,12 +174,7 @@ def _row_pendurado(m, cliente, item):
                     ),
                     expand=True,
                 ),
-
-                _cell(
-                    ft.Text(str(m.quantidade)),
-                    width=50,
-                ),
-
+                _cell(ft.Text(str(m.quantidade)), width=50),
                 _cell(
                     ft.Text(
                         f"R$ {m.valor_unitario * m.quantidade:.2f}",
@@ -239,7 +182,6 @@ def _row_pendurado(m, cliente, item):
                     ),
                     width=90,
                 ),
-
                 _cell(
                     ft.Text(
                         m.data.strftime("%d/%m/%Y %H:%M"),
@@ -248,21 +190,18 @@ def _row_pendurado(m, cliente, item):
                     ),
                     width=130,
                 ),
-            ]
-        )
+            ],
+        ),
     )
 
 
 def _build_table(header, rows, altura=300):
-
     body = []
 
     for i, row in enumerate(rows):
-
         body.append(row)
 
         if i < len(rows) - 1:
-
             body.append(
                 ft.Divider(
                     height=1,
@@ -272,35 +211,27 @@ def _build_table(header, rows, altura=300):
             )
 
     return ft.Container(
-
         border=ft.Border(
             left=ft.BorderSide(1, ft.Colors.GREY_300),
             top=ft.BorderSide(1, ft.Colors.GREY_300),
             right=ft.BorderSide(1, ft.Colors.GREY_300),
             bottom=ft.BorderSide(1, ft.Colors.GREY_300),
         ),
-
         border_radius=10,
-
         content=ft.Column(
-
             spacing=0,
-
             controls=[
-
                 header,
-
                 ft.Container(
                     height=altura,
-
                     content=ft.Column(
                         scroll=ft.ScrollMode.AUTO,
                         spacing=0,
                         controls=body,
-                    )
-                )
-            ]
-        )
+                    ),
+                ),
+            ],
+        ),
     )
 
 
@@ -311,7 +242,6 @@ def _build_table(header, rows, altura=300):
 class FinanceiroView(ft.Column):
 
     def __init__(self, session: Session, page: ft.Page):
-
         super().__init__(
             expand=True,
             spacing=0,
@@ -327,11 +257,31 @@ class FinanceiroView(ft.Column):
 
         self._todos_registros = []
         self._penduradas_cache = []
-
         self._clientes_map = {}
         self._itens_map = {}
 
         self._build()
+
+        # IMPORTANTE:
+        # Não chamar update aqui
+        self._carregar_tabela()
+
+    # ============================================================
+    # SAFE UPDATE
+    # ============================================================
+
+    def _safe_update(self, control=None):
+        try:
+            if control and control.page:
+                control.update()
+            elif self.page:
+                self.update()
+        except Exception:
+            pass
+
+    # ============================================================
+    # BUILD
+    # ============================================================
 
     def _build(self):
 
@@ -366,79 +316,53 @@ class FinanceiroView(ft.Column):
             label="Tipo",
             width=160,
             value="todos",
-
             options=[
+                ft.dropdown.Option("todos", "Todos"),
                 ft.dropdown.Option(
-                    key="todos",
-                    text="Todos",
+                    TipoFinanceiro.receita.value,
+                    "Receita",
                 ),
-
                 ft.dropdown.Option(
-                    key=TipoFinanceiro.receita.value,
-                    text="Receita",
-                ),
-
-                ft.dropdown.Option(
-                    key=TipoFinanceiro.despesa.value,
-                    text="Despesa",
+                    TipoFinanceiro.despesa.value,
+                    "Despesa",
                 ),
             ],
-
-            on_change=self._aplicar_filtros,
         )
+
+        self.filtro_tipo.on_change = self._aplicar_filtros
 
         self.filtro_pagamento = ft.Dropdown(
             label="Pagamento",
             width=160,
             value="todos",
-
             options=[
-                ft.dropdown.Option(
-                    key="todos",
-                    text="Todos",
-                ),
-
-                ft.dropdown.Option(
-                    key=TipoPagamento.pix.value,
-                    text="Pix",
-                ),
-
-                ft.dropdown.Option(
-                    key=TipoPagamento.dinheiro.value,
-                    text="Dinheiro",
-                ),
-
-                ft.dropdown.Option(
-                    key=TipoPagamento.debito.value,
-                    text="Débito",
-                ),
-
-                ft.dropdown.Option(
-                    key=TipoPagamento.credito.value,
-                    text="Crédito",
-                ),
+                ft.dropdown.Option("todos", "Todos"),
+                ft.dropdown.Option(TipoPagamento.pix.value, "Pix"),
+                ft.dropdown.Option(TipoPagamento.dinheiro.value, "Dinheiro"),
+                ft.dropdown.Option(TipoPagamento.debito.value, "Débito"),
+                ft.dropdown.Option(TipoPagamento.credito.value, "Crédito"),
             ],
-
-            on_change=self._aplicar_filtros,
         )
+
+        self.filtro_pagamento.on_change = self._aplicar_filtros
 
         self.filtro_busca = ft.TextField(
             label="Buscar descrição",
             expand=True,
-            on_change=self._aplicar_filtros,
         )
+
+        self.filtro_busca.on_change = self._aplicar_filtros
 
         self.filtro_cliente = ft.Dropdown(
             label="Cliente",
             width=220,
             value="todos",
-
             options=[
                 ft.dropdown.Option(
-                    key="todos",
-                    text="Todos os clientes",
+                    "todos",
+                    "Todos os clientes",
                 )
-            ]
+            ],
         )
 
         btn_filtrar = ft.FilledButton(
@@ -457,19 +381,13 @@ class FinanceiroView(ft.Column):
         self.tabela_pend_box = ft.Column()
 
         self.controls = [
-
             ft.Container(
-
                 expand=True,
                 padding=20,
-
                 content=ft.Column(
-
                     expand=True,
                     scroll=ft.ScrollMode.AUTO,
-
                     controls=[
-
                         ft.Text(
                             "Financeiro",
                             size=24,
@@ -480,9 +398,7 @@ class FinanceiroView(ft.Column):
 
                         ft.Row(
                             spacing=32,
-
                             controls=[
-
                                 ft.Column([
                                     ft.Text("Receitas"),
                                     self.txt_receitas,
@@ -502,7 +418,7 @@ class FinanceiroView(ft.Column):
                                     ft.Text("Pendente"),
                                     self.txt_pendente,
                                 ]),
-                            ]
+                            ],
                         ),
 
                         ft.Divider(),
@@ -537,12 +453,10 @@ class FinanceiroView(ft.Column):
                         ft.Container(height=10),
 
                         self.tabela_pend_box,
-                    ]
-                )
+                    ],
+                ),
             )
         ]
-
-        self._carregar_tabela()
 
     # ============================================================
     # LOAD
@@ -550,21 +464,23 @@ class FinanceiroView(ft.Column):
 
     def _carregar_tabela(self, e=None):
 
+        clientes = self.cliente_service.listar_todos()
+        itens = self.item_service.listar_todos()
+
         self._clientes_map = {
             c.id: c.nome
-            for c in self.cliente_service.listar_todos()
+            for c in clientes
         }
 
         self._itens_map = {
             i.id: i.nome
-            for i in self.item_service.listar_todos()
+            for i in itens
         }
 
         self._todos_registros = self.service.listar_todos()
 
         self._carregar_pendurados()
         self._atualizar_filtro_clientes()
-
         self._aplicar_filtros()
 
     def _carregar_pendurados(self):
@@ -574,7 +490,8 @@ class FinanceiroView(ft.Column):
         )
 
         self._penduradas_cache = [
-            m for m in movs
+            m
+            for m in movs
             if m.cliente_id is not None
         ]
 
@@ -593,20 +510,18 @@ class FinanceiroView(ft.Column):
         }
 
         self.filtro_cliente.options = [
-
             ft.dropdown.Option(
-                key="todos",
-                text="Todos os clientes",
+                "todos",
+                "Todos os clientes",
             ),
 
             *[
                 ft.dropdown.Option(
-                    key=str(cid),
-                    text=self._clientes_map.get(cid, f"#{cid}")
+                    str(cid),
+                    self._clientes_map.get(cid, f"#{cid}"),
                 )
-
                 for cid in ids
-            ]
+            ],
         ]
 
     # ============================================================
@@ -618,17 +533,17 @@ class FinanceiroView(ft.Column):
         registros = self._todos_registros
 
         if self.filtro_tipo.value != "todos":
-
             registros = [
-                r for r in registros
+                r
+                for r in registros
                 if getattr(r.tipo, "value", r.tipo)
                 == self.filtro_tipo.value
             ]
 
         if self.filtro_pagamento.value != "todos":
-
             registros = [
-                r for r in registros
+                r
+                for r in registros
                 if getattr(r.pagamento, "value", r.pagamento)
                 == self.filtro_pagamento.value
             ]
@@ -638,9 +553,9 @@ class FinanceiroView(ft.Column):
         ).strip().lower()
 
         if termo:
-
             registros = [
-                r for r in registros
+                r
+                for r in registros
                 if termo in (r.descricao or "").lower()
             ]
 
@@ -651,17 +566,15 @@ class FinanceiroView(ft.Column):
 
         val = self.filtro_cliente.value
 
-        if val == "todos":
-
-            penduradas = self._penduradas_cache
-
-        else:
-
-            penduradas = [
-
-                m for m in self._penduradas_cache
+        penduradas = (
+            self._penduradas_cache
+            if val == "todos"
+            else [
+                m
+                for m in self._penduradas_cache
                 if str(m.cliente_id) == val
             ]
+        )
 
         self._renderizar_pendurados(penduradas)
 
@@ -679,32 +592,28 @@ class FinanceiroView(ft.Column):
             ("Data", 130),
         ])
 
-        rows = [
-
-            _row_financeiro(r)
-            for r in registros
-
-        ] or [
-
-            ft.Container(
-                padding=20,
-
-                content=ft.Text(
-                    "Nenhum registro encontrado.",
-                    color=ft.Colors.GREY_500,
+        rows = (
+            [_row_financeiro(r) for r in registros]
+            or [
+                ft.Container(
+                    padding=20,
+                    content=ft.Text(
+                        "Nenhum registro encontrado.",
+                        color=ft.Colors.GREY_500,
+                    ),
                 )
-            )
-        ]
+            ]
+        )
 
         self.tabela_box.controls = [
             _build_table(header, rows)
         ]
 
-        self.tabela_box.update()
-
         self._renderizar_pendurados(
             self._penduradas_cache
         )
+
+        self._safe_update(self.tabela_box)
 
     def _renderizar_pendurados(self, penduradas):
 
@@ -716,27 +625,31 @@ class FinanceiroView(ft.Column):
             ("Data", 130),
         ])
 
-        rows = [
-
-            _row_pendurado(
-                m,
-                self._clientes_map.get(m.cliente_id, "-"),
-                self._itens_map.get(m.item_id, "-"),
-            )
-
-            for m in penduradas
-
-        ] or [
-
-            ft.Container(
-                padding=20,
-
-                content=ft.Text(
-                    "Nenhuma venda pendurada.",
-                    color=ft.Colors.GREY_500,
+        rows = (
+            [
+                _row_pendurado(
+                    m,
+                    self._clientes_map.get(
+                        m.cliente_id,
+                        "-"
+                    ),
+                    self._itens_map.get(
+                        m.item_id,
+                        "-"
+                    ),
                 )
-            )
-        ]
+                for m in penduradas
+            ]
+            or [
+                ft.Container(
+                    padding=20,
+                    content=ft.Text(
+                        "Nenhuma venda pendurada.",
+                        color=ft.Colors.GREY_500,
+                    ),
+                )
+            ]
+        )
 
         self.tabela_pend_box.controls = [
             _build_table(
@@ -746,7 +659,7 @@ class FinanceiroView(ft.Column):
             )
         ]
 
-        self.tabela_pend_box.update()
+        self._safe_update(self.tabela_pend_box)
 
     # ============================================================
     # RESUMO
@@ -755,21 +668,15 @@ class FinanceiroView(ft.Column):
     def _atualizar_resumo(self, registros):
 
         receitas = sum(
-
             r.valor
-
             for r in registros
-
             if getattr(r.tipo, "value", r.tipo)
             == TipoFinanceiro.receita.value
         )
 
         despesas = sum(
-
             r.valor
-
             for r in registros
-
             if getattr(r.tipo, "value", r.tipo)
             == TipoFinanceiro.despesa.value
         )
@@ -786,6 +693,4 @@ class FinanceiroView(ft.Column):
             else ft.Colors.RED_700
         )
 
-        self.txt_receitas.update()
-        self.txt_despesas.update()
-        self.txt_saldo.update()
+        self._safe_update()

@@ -22,6 +22,7 @@ class Movimentacao(SQLModel, table=True):
     tipo: str
     quantidade: int
     valor_unitario: float
+    valor_pago: Optional[float] = None
     data: datetime = Field(default_factory=agora_brasilia)
 
     item: Optional["Item"] = Relationship(back_populates="movimentacoes")

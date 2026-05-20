@@ -43,19 +43,7 @@ class ClientesView(ft.Column):
         self._cliente_editando_id = None
         self._mostrando_devedores = False
 
-        self.tabela = ft.DataTable(
-            expand=True,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
-            border_radius=8,
-            column_spacing=20,
-            columns=[
-                ft.DataColumn(ft.Text("Nome",          weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Telefone",      weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text("Saldo Devedor", weight=ft.FontWeight.BOLD), numeric=True),
-                ft.DataColumn(ft.Text("Ações",         weight=ft.FontWeight.BOLD)),
-            ],
-            rows=[],
-        )
+        self.tabela = ft.Column(expand=True)
 
         self.msg_erro = ft.Text("", color=ft.Colors.RED_400, size=13)
 
@@ -79,7 +67,7 @@ class ClientesView(ft.Column):
                 padding=24,
                 content=ft.Column(
                     expand=True,
-                    scroll=ft.ScrollMode.AUTO,   # ← scroll no Column, não no Row
+                    
                     controls=[
                         formulario,
                         ft.Container(height=16),
@@ -96,52 +84,238 @@ class ClientesView(ft.Column):
     # ── Tabela ───────────────────────────────────────────────────────
 
     def _carregar_tabela(self, clientes=None):
+
         if clientes is None:
             clientes = self.service.listar_todos()
 
-        self.tabela.rows = []
+        rows = []
+
         for c in clientes:
+
             saldo = c.saldo_devedor or 0
-            self.tabela.rows.append(
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(c.nome)),
-                    ft.DataCell(ft.Text(c.telefone or "")),
-                    ft.DataCell(
-                        ft.Text(
-                            f"R$ {saldo:.2f}",
-                            color=ft.Colors.RED_600 if saldo > 0 else ft.Colors.GREEN_600,
-                            weight=ft.FontWeight.BOLD if saldo > 0 else ft.FontWeight.NORMAL,
-                        )
+
+            if saldo > 0:
+                badge = ft.Container(
+                    bgcolor=ft.Colors.RED_50,
+                    border_radius=6,
+                    padding=ft.Padding(
+                        left=8,
+                        top=3,
+                        right=8,
+                        bottom=3,
                     ),
-                    ft.DataCell(
-                        ft.Row([
-                            ft.IconButton(
-                                ft.Icons.EDIT,
-                                tooltip="Editar",
-                                icon_color=ft.Colors.BLUE_600,
-                                data=c.id,
-                                on_click=self._editar,
+                    content=ft.Row(
+                        spacing=4,
+                        tight=True,
+                        controls=[
+                            ft.Icon(
+                                ft.Icons.WARNING_AMBER,
+                                size=13,
+                                color=ft.Colors.RED_700,
                             ),
-                            # ← NOVO: botão de registrar pagamento (só aparece se tem saldo)
-                            ft.IconButton(
-                                ft.Icons.PAYMENTS,
-                                tooltip="Registrar pagamento",
-                                icon_color=ft.Colors.GREEN_700,
-                                data=c,
-                                on_click=self._abrir_pagamento,
-                                visible=saldo > 0,
+
+                            ft.Text(
+                                f"R$ {saldo:.2f}",
+                                size=12,
+                                color=ft.Colors.RED_700,
                             ),
-                            ft.IconButton(
-                                ft.Icons.DELETE,
-                                tooltip="Remover",
-                                icon_color=ft.Colors.RED_400,
-                                data=c.id,
-                                on_click=self._confirmar_remover,
-                            ),
-                        ])
+                        ],
                     ),
-                ])
+                )
+            else:
+                badge = ft.Container(
+                    bgcolor=ft.Colors.GREEN_50,
+                    border_radius=6,
+                    padding=ft.Padding(
+                        left=8,
+                        top=3,
+                        right=8,
+                        bottom=3,
+                    ),
+                    content=ft.Row(
+                        spacing=4,
+                        tight=True,
+                        controls=[
+                            ft.Icon(
+                                ft.Icons.CHECK_CIRCLE,
+                                size=13,
+                                color=ft.Colors.GREEN_700,
+                            ),
+
+                            ft.Text(
+                                "Quitado",
+                                size=12,
+                                color=ft.Colors.GREEN_700,
+                            ),
+                        ],
+                    ),
+                )
+
+            row = ft.Container(
+                padding=10,
+                on_hover=self._hover_row,
+                content=ft.Row(
+                    spacing=8,
+                    controls=[
+
+                        ft.Container(
+                            expand=True,
+                            content=ft.Text(
+                                c.nome,
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                        ),
+
+                        ft.Container(
+                            width=180,
+                            content=ft.Text(
+                                c.telefone or "-",
+                            ),
+                        ),
+
+                        ft.Container(
+                            width=140,
+                            content=badge,
+                        ),
+
+                        ft.Container(
+                            width=170,
+                            content=ft.Row(
+                                spacing=0,
+                                controls=[
+
+                                    ft.IconButton(
+                                        ft.Icons.EDIT,
+                                        tooltip="Editar",
+                                        icon_color=ft.Colors.BLUE_600,
+                                        data=c.id,
+                                        on_click=self._editar,
+                                    ),
+
+                                    ft.IconButton(
+                                        ft.Icons.PAYMENTS,
+                                        tooltip="Registrar pagamento",
+                                        icon_color=ft.Colors.GREEN_700,
+                                        data=c,
+                                        on_click=self._abrir_pagamento,
+                                        visible=saldo > 0,
+                                    ),
+
+                                    ft.IconButton(
+                                        ft.Icons.DELETE,
+                                        tooltip="Remover",
+                                        icon_color=ft.Colors.RED_400,
+                                        data=c.id,
+                                        on_click=self._confirmar_remover,
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ],
+                ),
             )
+
+            rows.append(row)
+
+            if c != clientes[-1]:
+                rows.append(
+                    ft.Divider(
+                        height=1,
+                        thickness=0.5,
+                        color=ft.Colors.GREY_200,
+                    )
+                )
+
+        if not rows:
+            rows = [
+                ft.Container(
+                    padding=20,
+                    content=ft.Text(
+                        "Nenhum cliente encontrado.",
+                        color=ft.Colors.GREY_500,
+                    ),
+                )
+            ]
+
+        header = ft.Container(
+            bgcolor=ft.Colors.GREY_100,
+            padding=10,
+            content=ft.Row(
+                spacing=8,
+                controls=[
+
+                    ft.Container(
+                        expand=True,
+                        content=ft.Text(
+                            "Nome",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=180,
+                        content=ft.Text(
+                            "Telefone",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=140,
+                        content=ft.Text(
+                            "Saldo",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+
+                    ft.Container(
+                        width=170,
+                        content=ft.Text(
+                            "Ações",
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
+        tabela = ft.Container(
+            expand=True,
+            bgcolor=ft.Colors.WHITE,
+            border=ft.Border(
+                left=ft.BorderSide(1, ft.Colors.GREY_300),
+                top=ft.BorderSide(1, ft.Colors.GREY_300),
+                right=ft.BorderSide(1, ft.Colors.GREY_300),
+                bottom=ft.BorderSide(1, ft.Colors.GREY_300),
+            ),
+            border_radius=10,
+            content=ft.Column(
+                spacing=0,
+                controls=[
+                    header,
+
+                    ft.Container(
+                        expand=True,
+                        content=ft.Column(
+                            scroll=ft.ScrollMode.AUTO,
+                            spacing=0,
+                            controls=rows,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
+        self.tabela.controls = [tabela]
+
         self._page.update()
 
     def _on_busca(self, e):
@@ -301,3 +475,12 @@ class ClientesView(ft.Column):
         self._page.overlay.append(dialog)
         dialog.open = True
         self._page.update()
+    
+    def _hover_row(self, e):
+        e.control.bgcolor = (
+            ft.Colors.GREY_50
+            if e.data == "true"
+            else None
+        )
+
+        e.control.update()

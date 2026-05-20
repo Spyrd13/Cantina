@@ -56,6 +56,7 @@ class MovimentacaoRepository:
             tipo=dados.tipo,
             quantidade=dados.quantidade,
             valor_unitario=valor_unitario,
+            valor_pago=dados.valor_pago,
         )
         self.session.add(movimentacao)
         self.session.commit()
