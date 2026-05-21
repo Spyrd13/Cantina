@@ -1,8 +1,13 @@
 # vendas_view.py
 
-import flet as ft
-from sqlmodel import Session
+from datetime import datetime, timedelta, timedelta
 
+from datetime import datetime
+
+import flet as ft
+from sqlmodel import Session, select
+
+from app.models.movimentacao import Movimentacao
 from app.services.movimentacao_services import MovimentacaoService
 from app.services.item_services import ItemService
 from app.services.cliente_services import ClienteService
@@ -438,7 +443,7 @@ class VendasView(ft.Column):
     # ============================================================
     # HISTÓRICO
     # ============================================================
-
+    
     def _carregar_tabela_vendas(self):
 
         if not self._itens_map:
@@ -453,8 +458,19 @@ class VendasView(ft.Column):
                 for c in self.cliente_service.listar_todos()
             }
 
-        movs = self.service.listar_por_tipo(
-            TipoMovimentacao.saida
+        inicio = datetime.now().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        fim = inicio + timedelta(days=1)
+
+        movs = self.service.listar_por_periodo(
+            inicio,
+            fim,
+            TipoMovimentacao.saida,
         )
 
         rows = []

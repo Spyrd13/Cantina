@@ -42,10 +42,15 @@ class MovimentacaoService:
     def listar_por_tipo(self, tipo: TipoMovimentacao) -> list[MovimentacaoBaseResponse]:
         return [MovimentacaoBaseResponse.model_validate(m) for m in self.repo.get_by_tipo(tipo)]
 
-    def listar_por_periodo(self, inicio: datetime, fim: datetime) -> list[MovimentacaoBaseResponse]:
+    def listar_por_periodo(
+        self,
+        inicio: datetime,
+        fim: datetime,
+        tipo: TipoMovimentacao | None = None,
+    ) -> list[MovimentacaoBaseResponse]:
         if inicio > fim:
             raise ValueError("A data de início não pode ser maior que a data de fim.")
-        return [MovimentacaoBaseResponse.model_validate(m) for m in self.repo.get_by_periodo(inicio, fim)]
+        return [MovimentacaoBaseResponse.model_validate(m) for m in self.repo.get_by_periodo(inicio, fim, tipo)]
 
     # ------------------------------------------------------------------ #
     #  Mutações                                                            #

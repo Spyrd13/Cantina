@@ -41,12 +41,28 @@ class MovimentacaoRepository:
         )
         return self.session.exec(statement).all()
 
-    def get_by_periodo(self, inicio: datetime, fim: datetime) -> list[Movimentacao]:
+    def get_by_periodo(
+        self,
+        inicio: datetime,
+        fim: datetime,
+        tipo: TipoMovimentacao | None = None,
+    ) -> list[Movimentacao]:
+
         statement = (
             select(Movimentacao)
-            .where(Movimentacao.data >= inicio, Movimentacao.data <= fim)
-            .order_by(Movimentacao.data.desc())
+            .where(Movimentacao.data >= inicio)
+            .where(Movimentacao.data < fim)
         )
+
+        if tipo:
+            statement = statement.where(
+                Movimentacao.tipo == tipo
+            )
+
+        statement = statement.order_by(
+            Movimentacao.data.desc()
+        )
+
         return self.session.exec(statement).all()
 
     def create(self, dados: MovimentacaoBaseCreate, valor_unitario: float) -> Movimentacao:
@@ -62,6 +78,8 @@ class MovimentacaoRepository:
         self.session.commit()
         self.session.refresh(movimentacao)
         return movimentacao
+    
+    
 
     def update(self, movimentacao: Movimentacao, dados: MovimentacaoBaseUpdate) -> Movimentacao:
         campos = dados.model_dump(exclude_unset=True)
