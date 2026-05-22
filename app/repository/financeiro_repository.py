@@ -49,12 +49,21 @@ class FinanceiroRepository:
         )
         return self.session.exec(statement).all()
 
-    def get_by_periodo(self, inicio: datetime, fim: datetime) -> list[Financeiro]:
+    def get_by_periodo(
+        self,
+        inicio: datetime,
+        fim: datetime,
+    ) -> list[Financeiro]:
+
         statement = (
             select(Financeiro)
-            .where(Financeiro.data >= inicio, Financeiro.data <= fim)
+            .where(
+                Financeiro.data >= inicio,
+                Financeiro.data < fim,
+            )
             .order_by(Financeiro.data.desc())
         )
+
         return self.session.exec(statement).all()
 
     def create(self, dados: financeiroCreate) -> Financeiro:
@@ -70,6 +79,8 @@ class FinanceiroRepository:
         self.session.commit()
         self.session.refresh(financeiro)
         return financeiro
+    
+    
 
     def update(self, financeiro: Financeiro, dados: financeiroUpdate) -> Financeiro:
         campos = dados.model_dump(exclude_unset=True)

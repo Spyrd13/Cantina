@@ -1,6 +1,7 @@
 # financeiro_view.py
 
 from datetime import datetime, timedelta
+from tkinter import dialog
 
 import flet as ft
 from sqlmodel import Session
@@ -468,11 +469,25 @@ class FinanceiroView(ft.Column):
                             weight=ft.FontWeight.BOLD,
                         ),
 
-                        ft.Row([
-                            self.filtro_cliente,
-                            btn_filtrar,
-                            
-                        ]),
+                        ft.ResponsiveRow(
+                            controls=[
+
+                                ft.Container(
+                                    col={"sm": 12, "md": 4},
+                                    content=self.filtro_cliente,
+                                ),
+
+                                ft.Container(
+                                    col={"sm": 12, "md": 3},
+                                    content=btn_filtrar,
+                                ),
+
+                                ft.Container(
+                                    col={"sm": 12, "md": 3},
+                                    content=btn_quitar,
+                                ),
+                            ]
+                        ),
 
                         ft.Container(height=10),
 
@@ -485,207 +500,245 @@ class FinanceiroView(ft.Column):
     # ============================================================
     # QUITAR PENDURADO
     # ============================================================
-    def _abrir_quitacao_cliente(self, e):
+    def _abrir_quitacao_cliente(self, e, cliente_id=None):
+        # Fallback de segurança: caso o botão original "Quitar pendurado" seja clicado
+        if cliente_id is None:
+            if self.filtro_cliente.value and self.filtro_cliente.value != "todos":
+                cliente_id = int(self.filtro_cliente.value)
+            else:
+                return  # Não faz nada se não houver cliente selecionado na ação avulsa
 
-        clientes_ids = sorted({
-            m.cliente_id
-            for m in self._penduradas_cache
-            if m.cliente_id is not None
-        })
+        nome_cliente = self._clientes_map.get(cliente_id, f"#{cliente_id}")
 
-        if not clientes_ids:
+        pendencias = [
+            m for m in self._penduradas_cache
+            if m.cliente_id == cliente_id
+        ]
 
-            self._page.snack_bar = ft.SnackBar(
-                ft.Text("Nenhum pendurado encontrado."),
-                bgcolor=ft.Colors.RED_700,
+        # Montar as linhas da tabela do popup com os itens
+        linhas_tabela = [
+            ft.Row(
+                controls=[
+                    ft.Text("Item", weight=ft.FontWeight.BOLD, expand=True),
+                    ft.Text("Data", weight=ft.FontWeight.BOLD, width=100),
+                    ft.Text("Saldo", weight=ft.FontWeight.BOLD, width=80),
+                ]
+            ),
+            ft.Divider(height=1, color=ft.Colors.GREY_300)
+        ]
+
+        total_divida = 0
+        for mov in pendencias:
+            saldo_mov = (mov.valor_unitario * mov.quantidade) - (mov.valor_pago or 0)
+            if saldo_mov <= 0:
+                continue
+            total_divida += saldo_mov
+
+            nome_item = self._itens_map.get(mov.item_id, "-")
+            linhas_tabela.append(
+                ft.Row(
+                    controls=[
+                        ft.Text(f"{mov.quantidade}x {nome_item}", expand=True, size=13),
+                        ft.Text(mov.data.strftime("%d/%m/%y"), width=100, size=13),
+                        ft.Text(f"R$ {saldo_mov:.2f}", width=80, size=13, color=ft.Colors.ORANGE_800),
+                    ]
+                )
             )
 
-            self._page.snack_bar.open = True
-            self._page.update()
-
-            return
-
-        dropdown_cliente = ft.Dropdown(
-            label="Cliente",
-            width=350,
-            options=[
-                ft.dropdown.Option(
-                    str(cid),
-                    self._clientes_map.get(cid, f"#{cid}")
-                )
-                for cid in clientes_ids
-            ]
-        )
-
-        txt_saldo = ft.Text(
-            "Saldo pendente: R$ 0.00",
-            color=ft.Colors.ORANGE_700,
-            weight=ft.FontWeight.BOLD,
+        # Container com scroll para a listagem dos itens no popup
+        tabela_modal = ft.Container(
+            height=250,
+            border=ft.Border(
+                left=ft.BorderSide(1, ft.Colors.GREY_300),
+                top=ft.BorderSide(1, ft.Colors.GREY_300),
+                right=ft.BorderSide(1, ft.Colors.GREY_300),
+                bottom=ft.BorderSide(1, ft.Colors.GREY_300),
+            ),
+            border_radius=8,
+            padding=10,
+            content=ft.Column(
+                scroll=ft.ScrollMode.AUTO,
+                controls=linhas_tabela,
+                spacing=5
+            )
         )
 
         field_valor = ft.TextField(
-            label="Valor recebido",
+            label="Valor a pagar",
+            width=200,
+            value=f"{total_divida:.2f}",
             keyboard_type=ft.KeyboardType.NUMBER,
         )
 
-        msg = ft.Text(
-            "",
-            color=ft.Colors.RED,
-        )
-
-        def atualizar_saldo(ev):
-
-            if not dropdown_cliente.value:
-                return
-
-            cliente_id = int(dropdown_cliente.value)
-
-            pendencias = [
-                m
-                for m in self._penduradas_cache
-                if m.cliente_id == cliente_id
-            ]
-
-            total = sum(
-                (m.valor_unitario * m.quantidade)
-                - (m.valor_pago or 0)
-                for m in pendencias
-            )
-
-            txt_saldo.value = f"Saldo pendente: R$ {total:.2f}"
-
-            self._page.update()
-
-        dropdown_cliente.on_change = atualizar_saldo
+        msg = ft.Text("", color=ft.Colors.RED)
 
         def confirmar(ev):
-
             try:
-
-                if not dropdown_cliente.value:
-                    raise ValueError("Selecione um cliente.")
-
-                valor = float(
-                    field_valor.value.replace(",", ".")
-                )
+                valor = float(field_valor.value.replace(",", "."))
 
                 if valor <= 0:
                     raise ValueError("Valor inválido.")
 
-                cliente_id = int(dropdown_cliente.value)
-
-                pendencias = [
-                    m
-                    for m in self._penduradas_cache
-                    if m.cliente_id == cliente_id
-                ]
-
                 restante = valor
 
                 for mov in pendencias:
-
-                    saldo_mov = (
-                        (mov.valor_unitario * mov.quantidade)
-                        - (mov.valor_pago or 0)
-                    )
-
-                    if restante <= 0:
-                        break
+                    saldo_mov = (mov.valor_unitario * mov.quantidade) - (mov.valor_pago or 0)
+                    if saldo_mov <= 0:
+                        continue
 
                     pagar = min(restante, saldo_mov)
-
-                    novo_pago = (
-                        (mov.valor_pago or 0)
-                        + pagar
-                    )
+                    novo_pago = (mov.valor_pago or 0) + pagar
 
                     self.mov_service.atualizar(
                         mov.id,
-                        {
-                            "valor_pago": novo_pago
-                        }
+                        {"valor_pago": novo_pago}
                     )
 
                     restante -= pagar
+                    if restante <= 0:
+                        break
 
                 self.service.registrar(
                     financeiroCreate(
                         tipo=TipoFinanceiro.receita,
                         pagamento=TipoPagamento.pix,
                         valor=valor,
-                        descricao=f"Quitação pendurado - {self._clientes_map.get(cliente_id)}",
+                        descricao=f"Quitação pendurado - {nome_cliente}",
                         movimentacao_id=None,
                     )
                 )
 
                 dialog.open = False
-
-                self._page.update()
-
+                e.page.update()
                 self._carregar_tabela()
 
             except Exception as ex:
-
                 msg.value = str(ex)
-
-                self._page.update()
+                msg.update()
 
         dialog = ft.AlertDialog(
-
             modal=True,
-
-            title=ft.Text(
-                "Quitar pendurado"
+            title=ft.Text(f"Quitar Dívida: {nome_cliente}", size=20, weight=ft.FontWeight.BOLD),
+            content=ft.Container(
+                width=500,
+                content=ft.Column(
+                    tight=True,
+                    spacing=15,
+                    controls=[
+                        tabela_modal,
+                        ft.Row(
+                            controls=[
+                                ft.Text(f"Total Pendente: R$ {total_divida:.2f}".replace('.', ','), 
+                                        size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_800),
+                                field_valor,
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER
+                        ),
+                        msg,
+                    ],
+                ),
             ),
-
-            content=ft.Column(
-                tight=True,
-
-                controls=[
-
-                    dropdown_cliente,
-
-                    txt_saldo,
-
-                    field_valor,
-
-                    msg,
-                ],
-            ),
-
             actions=[
-
                 ft.TextButton(
                     "Cancelar",
                     on_click=lambda ev: self._fechar_dialog(dialog),
                 ),
-
-                ft.ElevatedButton(
-                    "Quitar",
+                ft.Button(
+                    "Confirmar e Quitar",
                     bgcolor=ft.Colors.GREEN_700,
                     color=ft.Colors.WHITE,
                     on_click=confirmar,
                 ),
             ],
+            actions_alignment=ft.MainAxisAlignment.END,
         )
 
-        self._page.dialog = dialog
-
+        e.page.overlay.append(dialog)
         dialog.open = True
-
-        self._page.update()
-
-    
+        e.page.update()
 
     def _fechar_dialog(self, dialog):
-
         dialog.open = False
-
         self._page.update()
 
     # ============================================================
-    # LOAD
+    # LOAD & RENDER
     # ============================================================
+
+    def _renderizar_pendurados(self, penduradas):
+        # 1. Agrupar os valores devidos por cliente
+        clientes_agrupados = {}
+        for m in penduradas:
+            saldo = (m.valor_unitario * m.quantidade) - (m.valor_pago or 0)
+            if saldo > 0:
+                if m.cliente_id not in clientes_agrupados:
+                    clientes_agrupados[m.cliente_id] = 0
+                clientes_agrupados[m.cliente_id] += saldo
+
+        # 2. Construir o Header
+        header = _header_row([
+            ("Cliente Devedor", None),
+            ("Total Pendente", 150),
+            ("Ação", 120),
+        ])
+
+        # 3. Construir as linhas da tabela agrupadas
+        rows = []
+        if not clientes_agrupados:
+            rows.append(
+                ft.Container(
+                    padding=20,
+                    content=ft.Text(
+                        "Nenhuma venda pendurada no momento.",
+                        color=ft.Colors.GREY_500,
+                    ),
+                )
+            )
+        else:
+            for cid, total_cliente in clientes_agrupados.items():
+                nome_cliente = self._clientes_map.get(cid, f"#{cid}")
+                
+                row = ft.Container(
+                    padding=10,
+                    on_hover=_hover_row,
+                    content=ft.Row(
+                        spacing=8,
+                        controls=[
+                            _cell(
+                                ft.Text(nome_cliente, weight=ft.FontWeight.BOLD), 
+                                expand=True
+                            ),
+                            _cell(
+                                ft.Text(f"R$ {total_cliente:.2f}", color=ft.Colors.ORANGE_800, weight=ft.FontWeight.BOLD), 
+                                width=150
+                            ),
+                            _cell(
+                                ft.FilledButton(
+                                    "Quitar",
+                                    icon=ft.Icons.PAID,
+                                    bgcolor=ft.Colors.GREEN_700,
+                                    color=ft.Colors.WHITE,
+                                    height=35,
+                                    # Passa o ID do cliente atual via lambda para a função do popup
+                                    on_click=lambda e, current_id=cid: self._abrir_quitacao_cliente(e, current_id)
+                                ),
+                                width=120,
+                            ),
+                        ],
+                    ),
+                )
+                rows.append(row)
+
+        self.tabela_pend_box.controls = [
+            _build_table(
+                header,
+                rows,
+                altura=320,
+            )
+        ]
+
+        self._safe_update(self.tabela_pend_box)
 
     def _carregar_tabela(self, e=None):
 
