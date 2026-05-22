@@ -73,7 +73,7 @@ class FinanceiroRepository:
             valor=dados.valor,
             descricao=dados.descricao or "",
             movimentacao_id=dados.movimentacao_id,
-            pago=False,
+            pago=dados.pago,
         )
         self.session.add(financeiro)
         self.session.commit()

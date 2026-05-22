@@ -4,7 +4,7 @@ from collections import defaultdict
 from app.repository.relatorio_repository import RelatorioRepository
 from app.services.item_services import ItemService
 from app.services.cliente_services import ClienteService
-from app.utils.enums import TipoPagamento
+from app.utils.enums import TipoPagamento, TipoFinanceiro
 
 
 class RelatorioService:
@@ -45,9 +45,8 @@ class RelatorioService:
                 pendurado_por_cliente[m.cliente_id] += saldo
 
             # Buscar financeiros vinculados a ESTA movimentação
-            if hasattr(m, 'financeiro') and m.financeiro:
-                f = m.financeiro
-                if f.tipo.value == "receita":
+            for f in getattr(m, "financeiros", []) or []:
+                if f.tipo == TipoFinanceiro.receita:
                     if f.pagamento == TipoPagamento.dinheiro:
                         dinheiro += f.valor
                     elif f.pagamento == TipoPagamento.debito:

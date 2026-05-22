@@ -1,9 +1,12 @@
-from sqlmodel import Field, SQLModel
-from typing import Optional
+from sqlmodel import Field, SQLModel, Relationship
+from typing import Optional, TYPE_CHECKING
 
 from datetime import datetime, timedelta, timezone
 
 from app.utils.enums import TipoFinanceiro, TipoPagamento
+
+if TYPE_CHECKING:
+    from app.models.movimentacao import Movimentacao
 
 BRASILIA = timezone(timedelta(hours=-3))
 
@@ -22,3 +25,4 @@ class Financeiro(SQLModel, table=True):
     pago: bool = Field(default=False)
     data: datetime = Field(default_factory=agora_brasilia)
     descricao: Optional[str] = Field(default="")
+    movimentacao: Optional["Movimentacao"] = Relationship(back_populates="financeiros")

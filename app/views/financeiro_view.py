@@ -624,6 +624,18 @@ class FinanceiroView(ft.Column):
             keyboard_type=ft.KeyboardType.NUMBER,
         )
 
+        field_pagamento = ft.Dropdown(
+            label="Tipo de pagamento",
+            width=220,
+            value=TipoPagamento.pix.value,
+            options=[
+                ft.dropdown.Option(TipoPagamento.pix.value, "Pix"),
+                ft.dropdown.Option(TipoPagamento.dinheiro.value, "Dinheiro"),
+                ft.dropdown.Option(TipoPagamento.debito.value, "Débito"),
+                ft.dropdown.Option(TipoPagamento.credito.value, "Crédito"),
+            ],
+        )
+
         msg = ft.Text("", color=ft.Colors.RED)
 
         
@@ -661,10 +673,12 @@ class FinanceiroView(ft.Column):
                 self.mov_service.atualizar_lote_valor_pago(updates)
 
                 # ✔ financeiro só 1 vez (ok)
+                pagamento_tipo = TipoPagamento(field_pagamento.value)
+
                 self.service.registrar(
                     financeiroCreate(
                         tipo=TipoFinanceiro.receita,
-                        pagamento=TipoPagamento.pix,
+                        pagamento=pagamento_tipo,
                         valor=valor,
                         descricao=f"Quitação pendurado - {nome_cliente}",
                         movimentacao_id=None,
@@ -699,6 +713,7 @@ class FinanceiroView(ft.Column):
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                             vertical_alignment=ft.CrossAxisAlignment.CENTER
                         ),
+                        field_pagamento,
                         msg,
                     ],
                 ),
@@ -870,18 +885,27 @@ class FinanceiroView(ft.Column):
 
             self._penduradas_cache = []
 
+            total_pendente = 0
+
             for m in movs:
 
                 if m.tipo != TipoMovimentacao.saida:
                     continue
 
                 total = m.valor_unitario * m.quantidade
-                pago = pagos_por_mov.get(m.id, 0)
+                pago = max(
+                    (m.valor_pago or 0),
+                    pagos_por_mov.get(m.id, 0),
+                )
 
                 if pago < total:
                     self._penduradas_cache.append(m)
+                    total_pendente += total - pago
 
-            self.txt_pendente.value = "OK"
+            if total_pendente > 0:
+                self.txt_pendente.value = f"R$ {total_pendente:.2f}"
+            else:
+                self.txt_pendente.value = "OK"
 
     def _atualizar_filtro_clientes(self):
 

@@ -28,4 +28,4 @@ class Movimentacao(SQLModel, table=True):
 
     item: Optional["Item"] = Relationship(back_populates="movimentacoes")
     cliente: Optional["Cliente"] = Relationship(back_populates="movimentacoes")
-    financeiros: List["Financeiro"] = Relationship(back_populates="movimentacao")
+    financeiros: list["Financeiro"] = Relationship(back_populates="movimentacao")

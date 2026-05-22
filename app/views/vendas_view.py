@@ -1,6 +1,4 @@
-from datetime import datetime, timedelta, timedelta
-
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import flet as ft
 from sqlmodel import Session, select
@@ -395,37 +393,43 @@ class VendasView(ft.Column):
 
         try:
             total_geral = 0
+            movimentacoes = []
+            pagamento = (
+                TipoPagamento.pix
+                if self.cb_pendurado.value
+                else TipoPagamento(self.dd_pagamento.value)
+            )
+            pago = not self.cb_pendurado.value
 
-            # Registra todos os itens de uma vez — o service faz 1 commit por chamada,
-            # mas agrupamos o financeiro no final para minimizar round-trips.
             for pedido in self.itens_pedido:
                 item = pedido["item"]
                 qtd  = pedido["quantidade"]
-                total_geral += qtd * item.valor
+                total_item = qtd * item.valor
+                total_geral += total_item
 
-                self.service.registrar(
+                mov = self.service.registrar(
                     MovimentacaoBaseCreate(
                         item_id=item.id,
                         quantidade=qtd,
                         tipo=TipoMovimentacao.saida,
                         cliente_id=cliente_id,
+                        valor_pago=total_item if pago else None,
                     )
                 )
+                movimentacoes.append((mov, item, total_item))
 
-            # Um único lançamento financeiro para toda a venda
-            self.financeiro_service.registrar(
-                financeiroCreate(
-                    tipo=TipoFinanceiro.receita,
-                    pagamento=(
-                        TipoPagamento.pix
-                        if self.cb_pendurado.value
-                        else TipoPagamento(self.dd_pagamento.value)
-                    ),
-                    valor=total_geral,
-                    descricao="Venda",
-                    movimentacao_id=None,
+            # Lançamentos financeiros vinculados a cada movimentação
+            for mov, item, total_item in movimentacoes:
+                self.financeiro_service.registrar(
+                    financeiroCreate(
+                        tipo=TipoFinanceiro.receita,
+                        pagamento=pagamento,
+                        valor=total_item,
+                        descricao=f"Venda - {item.nome}",
+                        movimentacao_id=mov.id,
+                        pago=pago,
+                    )
                 )
-            )
 
             self.itens_pedido = []
             self._renderizar_pedido()

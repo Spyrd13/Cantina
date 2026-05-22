@@ -1,5 +1,6 @@
 import flet as ft
 from sqlmodel import Session
+from datetime import datetime, timedelta
 
 from app.services.movimentacao_services import MovimentacaoService
 from app.services.financeiro_services import FinanceiroService
@@ -9,6 +10,7 @@ from app.services.cliente_services import ClienteService
 from app.utils.enums import (
     TipoMovimentacao,
     TipoFinanceiro,
+    TipoPagamento,
 )
 
 
@@ -48,8 +50,58 @@ class HistoricoView(ft.Column):
             prefix_icon=ft.Icons.SEARCH,
         )
 
+        self.dp_inicio_vendas = ft.DatePicker(
+            field_label_text="Data início",
+        )
+
+        self.dp_fim_vendas = ft.DatePicker(
+            field_label_text="Data fim",
+        )
+
+        self.dd_mes_vendas = ft.Dropdown(
+            label="Mês",
+            width=180,
+            value="todos",
+            options=[
+                ft.dropdown.Option("todos", "Todos"),
+                ft.dropdown.Option("01", "Janeiro"),
+                ft.dropdown.Option("02", "Fevereiro"),
+                ft.dropdown.Option("03", "Março"),
+                ft.dropdown.Option("04", "Abril"),
+                ft.dropdown.Option("05", "Maio"),
+                ft.dropdown.Option("06", "Junho"),
+                ft.dropdown.Option("07", "Julho"),
+                ft.dropdown.Option("08", "Agosto"),
+                ft.dropdown.Option("09", "Setembro"),
+                ft.dropdown.Option("10", "Outubro"),
+                ft.dropdown.Option("11", "Novembro"),
+                ft.dropdown.Option("12", "Dezembro"),
+            ],
+        )
+
+        ano_atual = datetime.now().year
+        self.dd_ano_vendas = ft.Dropdown(
+            label="Ano",
+            width=120,
+            value=str(ano_atual),
+            options=[
+                ft.dropdown.Option(str(ano), str(ano))
+                for ano in range(ano_atual - 2, ano_atual + 2)
+            ],
+        )
+
         self.field_busca_vendas.on_change = (
             self._carregar_historico_vendas
+        )
+        self.dp_inicio_vendas.on_change = self._carregar_historico_vendas
+        self.dp_fim_vendas.on_change = self._carregar_historico_vendas
+        self.dd_mes_vendas.on_change = self._carregar_historico_vendas
+        self.dd_ano_vendas.on_change = self._carregar_historico_vendas
+
+        self.btn_filtrar_vendas = ft.FilledButton(
+            "Filtrar",
+            icon=ft.Icons.FILTER_ALT,
+            on_click=self._carregar_historico_vendas,
         )
 
         # ======================================================
@@ -62,8 +114,57 @@ class HistoricoView(ft.Column):
             prefix_icon=ft.Icons.SEARCH,
         )
 
+        self.dp_inicio_estoque = ft.DatePicker(
+            field_label_text="Data início",
+        )
+
+        self.dp_fim_estoque = ft.DatePicker(
+            field_label_text="Data fim",
+        )
+
+        self.dd_mes_estoque = ft.Dropdown(
+            label="Mês",
+            width=180,
+            value="todos",
+            options=[
+                ft.dropdown.Option("todos", "Todos"),
+                ft.dropdown.Option("01", "Janeiro"),
+                ft.dropdown.Option("02", "Fevereiro"),
+                ft.dropdown.Option("03", "Março"),
+                ft.dropdown.Option("04", "Abril"),
+                ft.dropdown.Option("05", "Maio"),
+                ft.dropdown.Option("06", "Junho"),
+                ft.dropdown.Option("07", "Julho"),
+                ft.dropdown.Option("08", "Agosto"),
+                ft.dropdown.Option("09", "Setembro"),
+                ft.dropdown.Option("10", "Outubro"),
+                ft.dropdown.Option("11", "Novembro"),
+                ft.dropdown.Option("12", "Dezembro"),
+            ],
+        )
+
+        self.dd_ano_estoque = ft.Dropdown(
+            label="Ano",
+            width=120,
+            value=str(ano_atual),
+            options=[
+                ft.dropdown.Option(str(ano), str(ano))
+                for ano in range(ano_atual - 2, ano_atual + 2)
+            ],
+        )
+
         self.field_busca_estoque.on_change = (
             self._carregar_historico_estoque
+        )
+        self.dp_inicio_estoque.on_change = self._carregar_historico_estoque
+        self.dp_fim_estoque.on_change = self._carregar_historico_estoque
+        self.dd_mes_estoque.on_change = self._carregar_historico_estoque
+        self.dd_ano_estoque.on_change = self._carregar_historico_estoque
+
+        self.btn_filtrar_estoque = ft.FilledButton(
+            "Filtrar",
+            icon=ft.Icons.FILTER_ALT,
+            on_click=self._carregar_historico_estoque,
         )
 
         self.dd_tipo_movimentacao = ft.Dropdown(
@@ -92,9 +193,52 @@ class HistoricoView(ft.Column):
             prefix_icon=ft.Icons.SEARCH,
         )
 
+        self.dp_inicio_financeiro = ft.DatePicker(
+            field_label_text="Data início",
+        )
+
+        self.dp_fim_financeiro = ft.DatePicker(
+            field_label_text="Data fim",
+        )
+
+        self.dd_mes_financeiro = ft.Dropdown(
+            label="Mês",
+            width=180,
+            value="todos",
+            options=[
+                ft.dropdown.Option("todos", "Todos"),
+                ft.dropdown.Option("01", "Janeiro"),
+                ft.dropdown.Option("02", "Fevereiro"),
+                ft.dropdown.Option("03", "Março"),
+                ft.dropdown.Option("04", "Abril"),
+                ft.dropdown.Option("05", "Maio"),
+                ft.dropdown.Option("06", "Junho"),
+                ft.dropdown.Option("07", "Julho"),
+                ft.dropdown.Option("08", "Agosto"),
+                ft.dropdown.Option("09", "Setembro"),
+                ft.dropdown.Option("10", "Outubro"),
+                ft.dropdown.Option("11", "Novembro"),
+                ft.dropdown.Option("12", "Dezembro"),
+            ],
+        )
+
+        self.dd_ano_financeiro = ft.Dropdown(
+            label="Ano",
+            width=120,
+            value=str(ano_atual),
+            options=[
+                ft.dropdown.Option(str(ano), str(ano))
+                for ano in range(ano_atual - 2, ano_atual + 2)
+            ],
+        )
+
         self.field_busca_financeiro.on_change = (
             self._carregar_historico_financeiro
         )
+        self.dp_inicio_financeiro.on_change = self._carregar_historico_financeiro
+        self.dp_fim_financeiro.on_change = self._carregar_historico_financeiro
+        self.dd_mes_financeiro.on_change = self._carregar_historico_financeiro
+        self.dd_ano_financeiro.on_change = self._carregar_historico_financeiro
 
         self.dd_tipo_financeiro = ft.Dropdown(
             label="Tipo financeiro",
@@ -114,6 +258,29 @@ class HistoricoView(ft.Column):
         )
 
         self.dd_tipo_financeiro.on_change = (
+            self._carregar_historico_financeiro
+        )
+
+        self.btn_filtrar_financeiro = ft.FilledButton(
+            "Filtrar",
+            icon=ft.Icons.FILTER_ALT,
+            on_click=self._carregar_historico_financeiro,
+        )
+
+        self.dd_pagamento_financeiro = ft.Dropdown(
+            label="Pagamento",
+            width=180,
+            value="todos",
+            options=[
+                ft.dropdown.Option("todos", "Todos"),
+                ft.dropdown.Option(TipoPagamento.pix.value, "Pix"),
+                ft.dropdown.Option(TipoPagamento.dinheiro.value, "Dinheiro"),
+                ft.dropdown.Option(TipoPagamento.debito.value, "Débito"),
+                ft.dropdown.Option(TipoPagamento.credito.value, "Crédito"),
+            ],
+        )
+
+        self.dd_pagamento_financeiro.on_change = (
             self._carregar_historico_financeiro
         )
 
@@ -154,6 +321,13 @@ class HistoricoView(ft.Column):
 
                         ft.Row([
                             self.field_busca_vendas,
+                            self.btn_filtrar_vendas,
+                        ]),
+                        ft.Row([
+                            self.dp_inicio_vendas,
+                            self.dp_fim_vendas,
+                            self.dd_mes_vendas,
+                            self.dd_ano_vendas,
                         ]),
 
                         self.tabela_vendas,
@@ -173,6 +347,13 @@ class HistoricoView(ft.Column):
                         ft.Row([
                             self.field_busca_estoque,
                             self.dd_tipo_movimentacao,
+                            self.btn_filtrar_estoque,
+                        ]),
+                        ft.Row([
+                            self.dp_inicio_estoque,
+                            self.dp_fim_estoque,
+                            self.dd_mes_estoque,
+                            self.dd_ano_estoque,
                         ]),
 
                         self.tabela_estoque,
@@ -192,6 +373,14 @@ class HistoricoView(ft.Column):
                         ft.Row([
                             self.field_busca_financeiro,
                             self.dd_tipo_financeiro,
+                            self.dd_pagamento_financeiro,
+                            self.btn_filtrar_financeiro,
+                        ]),
+                        ft.Row([
+                            self.dp_inicio_financeiro,
+                            self.dp_fim_financeiro,
+                            self.dd_mes_financeiro,
+                            self.dd_ano_financeiro,
                         ]),
 
                         self.tabela_financeiro,
@@ -203,6 +392,30 @@ class HistoricoView(ft.Column):
         self._carregar_historico_vendas()
         self._carregar_historico_estoque()
         self._carregar_historico_financeiro()
+
+    def _get_periodo(self, data_inicio, data_fim, mes, ano):
+        if data_inicio.value or data_fim.value:
+            inicio = datetime.combine(
+                data_inicio.value,
+                datetime.min.time(),
+            ) if data_inicio.value else datetime.min
+            fim = datetime.combine(
+                data_fim.value,
+                datetime.max.time(),
+            ) if data_fim.value else datetime.max
+            return inicio, fim
+
+        if mes.value != "todos":
+            mes_num = int(mes.value)
+            ano_num = int(ano.value)
+            inicio = datetime(ano_num, mes_num, 1)
+            if mes_num == 12:
+                fim = datetime(ano_num + 1, 1, 1)
+            else:
+                fim = datetime(ano_num, mes_num + 1, 1)
+            return inicio, fim
+
+        return None, None
 
     # ==========================================================
     # VENDAS
@@ -220,9 +433,20 @@ class HistoricoView(ft.Column):
             TipoMovimentacao.saida
         )
 
+        inicio, fim = self._get_periodo(
+            self.dp_inicio_vendas,
+            self.dp_fim_vendas,
+            self.dd_mes_vendas,
+            self.dd_ano_vendas,
+        )
+
         rows = []
 
         for mov in movs:
+
+            if inicio and fim:
+                if mov.data < inicio or mov.data >= fim:
+                    continue
 
             item_nome = self._itens_map.get(
                 mov.item_id,
@@ -295,12 +519,23 @@ class HistoricoView(ft.Column):
 
         movs = self.mov_service.listar_todas()
 
+        inicio, fim = self._get_periodo(
+            self.dp_inicio_estoque,
+            self.dp_fim_estoque,
+            self.dd_mes_estoque,
+            self.dd_ano_estoque,
+        )
+
         rows = []
 
         for mov in movs:
 
             if mov.tipo == TipoMovimentacao.saida:
                 continue
+
+            if inicio and fim:
+                if mov.data < inicio or mov.data >= fim:
+                    continue
 
             if tipo != "todos":
                 if mov.tipo.value != tipo:
@@ -373,12 +608,28 @@ class HistoricoView(ft.Column):
 
         registros = self.fin_service.listar_todos()
 
+        inicio, fim = self._get_periodo(
+            self.dp_inicio_financeiro,
+            self.dp_fim_financeiro,
+            self.dd_mes_financeiro,
+            self.dd_ano_financeiro,
+        )
+
         rows = []
 
         for reg in registros:
 
+            if inicio and fim:
+                if reg.data < inicio or reg.data >= fim:
+                    continue
+
             if tipo != "todos":
                 if reg.tipo.value != tipo:
+                    continue
+
+            pagamento = self.dd_pagamento_financeiro.value
+            if pagamento != "todos":
+                if reg.pagamento.value != pagamento:
                     continue
 
             descricao = reg.descricao or "-"
