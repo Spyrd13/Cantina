@@ -7,6 +7,7 @@ from app.views.vendas_view import VendasView
 from app.views.estoque_view import EstoqueView
 from app.views.financeiro_view import FinanceiroView
 from app.views.historico_view import HistoricoView
+from app.views.relatorio_view import RelatorioView
 
 
 def main(page: ft.Page):
@@ -36,6 +37,8 @@ def main(page: ft.Page):
                 navegar(FinanceiroView(session, page))
             elif index == 5:
                 navegar(HistoricoView(session, page))
+            elif index == 6:
+                navegar(RelatorioView(session, page))
 
     nav = ft.NavigationRail(
         selected_index=0,
@@ -74,6 +77,11 @@ def main(page: ft.Page):
                 icon=ft.Icons.HISTORY,
                 selected_icon=ft.Icons.HISTORY,
                 label="Histórico",
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.Icons.INSIGHTS_OUTLINED,
+                selected_icon=ft.Icons.INSIGHTS,
+                label="Relatório",
             ),
         ],
         on_change=on_nav_change,

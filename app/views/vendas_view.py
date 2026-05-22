@@ -1,5 +1,3 @@
-# vendas_view.py
-
 from datetime import datetime, timedelta, timedelta
 
 from datetime import datetime
