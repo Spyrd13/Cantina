@@ -9,7 +9,7 @@ class ClienteService:
         self.repo = ClienteRepository(session)
 
     # ------------------------------------------------------------------ #
-    #  Consultas                                                           #
+    #  Consultas                                                         #
     # ------------------------------------------------------------------ #
 
     def listar_todos(self) -> list[ClienteResponse]:
@@ -29,7 +29,7 @@ class ClienteService:
         return [ClienteResponse.model_validate(c) for c in clientes]
 
     # ------------------------------------------------------------------ #
-    #  Mutações                                                            #
+    #  Mutações                                                          #
     # ------------------------------------------------------------------ #
 
     def cadastrar(self, dados: ClienteCreate) -> ClienteResponse:
@@ -76,7 +76,7 @@ class ClienteService:
         return ClienteResponse.model_validate(cliente)
 
     # ------------------------------------------------------------------ #
-    #  Helpers privados                                                    #
+    #  Helpers privados                                                  #
     # ------------------------------------------------------------------ #
 
     def _get_or_raise(self, cliente_id: int) -> Cliente:

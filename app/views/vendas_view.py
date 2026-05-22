@@ -30,6 +30,7 @@ class VendasView(ft.Column):
 
         self.session = session
         self._page   = page
+        
 
         self.service             = MovimentacaoService(session)
         self.item_service        = ItemService(session)
@@ -119,7 +120,7 @@ class VendasView(ft.Column):
                 padding=20,
                 content=ft.Column(
                     expand=True,
-                    
+                    scroll=ft.ScrollMode.AUTO,
                     controls=[
                         ft.Text("Vendas", size=24, weight=ft.FontWeight.BOLD),
                         ft.Divider(),

@@ -1,5 +1,3 @@
-# financeiro_view.py
-
 from datetime import datetime, timedelta
 from tkinter import dialog
 
@@ -8,6 +6,7 @@ from sqlmodel import Session
 
 from app.schemas.financeiro_base import financeiroCreate
 
+from app.schemas.movimentacao_base import MovimentacaoBaseUpdate
 from app.services.financeiro_services import FinanceiroService
 from app.services.movimentacao_services import MovimentacaoService
 from app.services.cliente_services import ClienteService
@@ -382,13 +381,7 @@ class FinanceiroView(ft.Column):
             on_click=self._carregar_tabela,
         )
 
-        btn_quitar = ft.FilledButton(
-            "Quitar pendurado",
-            icon=ft.Icons.PAID,
-            bgcolor=ft.Colors.GREEN_700,
-            color=ft.Colors.WHITE,
-            on_click=self._abrir_quitacao_cliente,
-        )
+        
 
         self.tabela_box = ft.Column()
 
@@ -482,10 +475,7 @@ class FinanceiroView(ft.Column):
                                     content=btn_filtrar,
                                 ),
 
-                                ft.Container(
-                                    col={"sm": 12, "md": 3},
-                                    content=btn_quitar,
-                                ),
+                                
                             ]
                         ),
 
@@ -527,20 +517,84 @@ class FinanceiroView(ft.Column):
             ft.Divider(height=1, color=ft.Colors.GREY_300)
         ]
 
-        total_divida = 0
-        for mov in pendencias:
-            saldo_mov = (mov.valor_unitario * mov.quantidade) - (mov.valor_pago or 0)
-            if saldo_mov <= 0:
-                continue
-            total_divida += saldo_mov
+        pendencias = [
+            m for m in self._penduradas_cache
+            if m.cliente_id == cliente_id
+        ]
 
-            nome_item = self._itens_map.get(mov.item_id, "-")
+        linhas_tabela = [
+            ft.Row(
+                controls=[
+                    ft.Text("Item", weight=ft.FontWeight.BOLD, expand=True),
+                    ft.Text("Data", weight=ft.FontWeight.BOLD, width=100),
+                    ft.Text("Saldo", weight=ft.FontWeight.BOLD, width=80),
+                ]
+            ),
+            ft.Divider(height=1, color=ft.Colors.GREY_300)
+        ]
+
+        # ==========================================================
+        # AGRUPAMENTO SIMPLES
+        # ==========================================================
+
+        agrupado = {}
+
+        total_divida = 0
+
+        for mov in pendencias:
+
+            if mov.cliente_id is None:
+                continue
+
+            valor_total = mov.valor_unitario * mov.quantidade
+            valor_pago = mov.valor_pago or 0
+            saldo = valor_total - valor_pago
+
+            if saldo <= 0:
+                continue
+
+            total_divida += saldo
+
+            chave = (mov.item_id, mov.data.date())
+
+            if chave not in agrupado:
+                agrupado[chave] = {
+                    "item_id": mov.item_id,
+                    "data": mov.data,
+                    "quantidade": 0,
+                    "saldo": 0,
+                }
+
+            agrupado[chave]["quantidade"] += mov.quantidade
+            agrupado[chave]["saldo"] += saldo
+
+        # ==========================================================
+        # RENDER
+        # ==========================================================
+
+        for item in agrupado.values():
+
+            nome_item = self._itens_map.get(item["item_id"], "-")
+
             linhas_tabela.append(
                 ft.Row(
                     controls=[
-                        ft.Text(f"{mov.quantidade}x {nome_item}", expand=True, size=13),
-                        ft.Text(mov.data.strftime("%d/%m/%y"), width=100, size=13),
-                        ft.Text(f"R$ {saldo_mov:.2f}", width=80, size=13, color=ft.Colors.ORANGE_800),
+                        ft.Text(
+                            f"{item['quantidade']}x {nome_item}",
+                            expand=True,
+                            size=13,
+                        ),
+                        ft.Text(
+                            item["data"].strftime("%d/%m/%y"),
+                            width=100,
+                            size=13,
+                        ),
+                        ft.Text(
+                            f"R$ {item['saldo']:.2f}",
+                            width=80,
+                            size=13,
+                            color=ft.Colors.ORANGE_800,
+                        ),
                     ]
                 )
             )
@@ -572,6 +626,7 @@ class FinanceiroView(ft.Column):
 
         msg = ft.Text("", color=ft.Colors.RED)
 
+        
         def confirmar(ev):
             try:
                 valor = float(field_valor.value.replace(",", "."))
@@ -579,25 +634,33 @@ class FinanceiroView(ft.Column):
                 if valor <= 0:
                     raise ValueError("Valor inválido.")
 
+                # 🔴 FECHA PRIMEIRO (UX instantânea)
+                dialog.open = False
+                e.page.update()
+
                 restante = valor
+
+                updates = []
 
                 for mov in pendencias:
                     saldo_mov = (mov.valor_unitario * mov.quantidade) - (mov.valor_pago or 0)
+
                     if saldo_mov <= 0:
                         continue
 
                     pagar = min(restante, saldo_mov)
                     novo_pago = (mov.valor_pago or 0) + pagar
 
-                    self.mov_service.atualizar(
-                        mov.id,
-                        {"valor_pago": novo_pago}
-                    )
+                    updates.append((mov.id, novo_pago))
 
                     restante -= pagar
+
                     if restante <= 0:
                         break
 
+                self.mov_service.atualizar_lote_valor_pago(updates)
+
+                # ✔ financeiro só 1 vez (ok)
                 self.service.registrar(
                     financeiroCreate(
                         tipo=TipoFinanceiro.receita,
@@ -608,9 +671,10 @@ class FinanceiroView(ft.Column):
                     )
                 )
 
-                dialog.open = False
-                e.page.update()
-                self._carregar_tabela()
+                # 🔄 recarrega depois
+                self._carregar_pendurados(None, None)
+                self._renderizar_pendurados(self._penduradas_cache)
+                self._aplicar_filtros()
 
             except Exception as ex:
                 msg.value = str(ex)
@@ -789,73 +853,53 @@ class FinanceiroView(ft.Column):
 
     def _carregar_pendurados(self, inicio, fim):
 
-        movs = self.mov_service.listar_por_periodo(
-            inicio,
-            fim,
-        )
+            movs = self.mov_service.listar_todas()
+            financeiros = self.service.listar_todos()
 
-        self._penduradas_cache = []
+            pagos_por_mov = {}
 
-        for m in movs:
+            for f in financeiros:
+                if f.movimentacao_id is None:
+                    continue
 
-            if m.tipo != TipoMovimentacao.saida:
-                continue
+                if f.pago:
+                    pagos_por_mov[f.movimentacao_id] = (
+                        pagos_por_mov.get(f.movimentacao_id, 0)
+                        + f.valor
+                    )
 
-            if m.cliente_id is None:
-                continue
+            self._penduradas_cache = []
 
-            total = (
-                m.valor_unitario
-                * m.quantidade
-            )
+            for m in movs:
 
-            valor_pago = (
-                m.valor_pago or 0
-            )
+                if m.tipo != TipoMovimentacao.saida:
+                    continue
 
-            # SOMENTE O QUE AINDA TEM SALDO
+                total = m.valor_unitario * m.quantidade
+                pago = pagos_por_mov.get(m.id, 0)
 
-            if valor_pago < total:
-                self._penduradas_cache.append(m)
+                if pago < total:
+                    self._penduradas_cache.append(m)
 
-        total_pendente = sum(
-            (
-                m.valor_unitario * m.quantidade
-            ) - (
-                m.valor_pago or 0
-            )
-            for m in self._penduradas_cache
-        )
-
-        self.txt_pendente.value = (
-            f"R$ {total_pendente:.2f}"
-        )
+            self.txt_pendente.value = "OK"
 
     def _atualizar_filtro_clientes(self):
 
-        ids = {
-            m.cliente_id
-            for m in self._penduradas_cache
-        }
+            ids = {
+                m.cliente_id
+                for m in self._penduradas_cache
+            }
 
-        self.filtro_cliente.options = [
-
-            ft.dropdown.Option(
-                "todos",
-                "Todos os clientes",
-            ),
-
-            *[
-                ft.dropdown.Option(
-                    str(cid),
-                    self._clientes_map.get(
-                        cid,
-                        f"#{cid}",
-                    ),
-                )
-                for cid in ids
-            ],
-        ]
+            self.filtro_cliente.options = [
+                ft.dropdown.Option("todos", "Todos os clientes"),
+                *[
+                    ft.dropdown.Option(
+                        str(cid),
+                        self._clientes_map.get(cid, f"#{cid}")
+                    )
+                    for cid in ids
+                ],
+            ]
 
     # ============================================================
     # FILTROS
