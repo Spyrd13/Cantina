@@ -1,10 +1,11 @@
 from sqlmodel import Relationship, SQLModel, Field
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List
 from datetime import datetime, timezone, timedelta
 
 if TYPE_CHECKING:
     from app.models.item import Item
     from app.models.cliente import Cliente
+    from app.models.financeiro import Financeiro
 
 BRASILIA = timezone(timedelta(hours=-3))
 
@@ -27,3 +28,4 @@ class Movimentacao(SQLModel, table=True):
 
     item: Optional["Item"] = Relationship(back_populates="movimentacoes")
     cliente: Optional["Cliente"] = Relationship(back_populates="movimentacoes")
+    financeiros: List["Financeiro"] = Relationship(back_populates="movimentacao")
