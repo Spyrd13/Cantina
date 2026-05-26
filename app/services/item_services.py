@@ -2,11 +2,13 @@ from sqlmodel import Session
 from app.repository.item_repository import ItemRepository
 from app.schemas.item_base import ItemBaseCreate, ItemBaseUpdate, ItemBaseResponse
 from app.models.item import Item
+from app.repository.movimentacao_repository import MovimentacaoRepository
 
 
 class ItemService:
     def __init__(self, session: Session):
         self.repo = ItemRepository(session)
+        self.mov_repo = MovimentacaoRepository(session)
 
     # ------------------------------------------------------------------ #
     #  Consultas                                                           #
@@ -33,24 +35,64 @@ class ItemService:
     # ------------------------------------------------------------------ #
 
     def cadastrar(self, dados: ItemBaseCreate) -> ItemBaseResponse:
+
+        dados.nome = " ".join(dados.nome.split()).title()
+
         self._validar_nome(dados.nome)
         self._validar_valor(dados.valor)
+
+        item_existente = self.repo.get_by_nome_exato(dados.nome)
+
+        if item_existente:
+
+            if item_existente.valor == dados.valor:
+                raise ValueError("Este item já existe.")
+
+            raise ValueError(
+                "Já existe um item com esse nome. "
+                "Edite o item existente para alterar o valor."
+            )
+
         item = self.repo.create(dados)
+
         return ItemBaseResponse.model_validate(item)
 
     def atualizar(self, item_id: int, dados: ItemBaseUpdate) -> ItemBaseResponse:
+
         item = self._get_or_raise(item_id)
+
         if dados.nome is not None:
+
+            dados.nome = " ".join(dados.nome.split()).title()
+
             self._validar_nome(dados.nome)
+
+            item_existente = self.repo.get_by_nome_exato(dados.nome)
+
+            if item_existente and item_existente.id != item_id:
+
+                if item_existente.valor == dados.valor:
+                    raise ValueError("Este item já existe.")
+
+                raise ValueError(
+                    "Já existe um item com esse nome. "
+                    "Edite o item existente para alterar o valor."
+                )
+
         if dados.valor is not None:
             self._validar_valor(dados.valor)
+
         if dados.quantidade is not None:
             self._validar_quantidade(dados.quantidade)
+
         item = self.repo.update(item, dados)
+
         return ItemBaseResponse.model_validate(item)
 
     def remover(self, item_id: int) -> None:
         item = self._get_or_raise(item_id)
+        if self.mov_repo.existe_movimentacao_do_item(item_id):
+            raise ValueError("Não é possível remover um item que já foi movimentado.")
         self.repo.delete(item)
 
     def adicionar_estoque(self, item_id: int, quantidade: int) -> ItemBaseResponse:

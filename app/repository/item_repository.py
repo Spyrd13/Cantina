@@ -18,6 +18,15 @@ class ItemRepository:
     def get_by_nome(self, nome: str) -> list[Item]:
         statement = select(Item).where(Item.nome.ilike(f"%{nome}%")).order_by(Item.nome)
         return self.session.exec(statement).all()
+    
+    def get_by_nome_exato(self, nome: str) -> Optional[Item]:
+
+        statement = (
+            select(Item)
+            .where(Item.nome.ilike(nome.strip()))
+        )
+
+        return self.session.exec(statement).first()
 
     def get_sem_estoque(self) -> list[Item]:
         """Retorna itens com quantidade igual a zero."""

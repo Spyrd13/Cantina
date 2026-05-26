@@ -26,7 +26,11 @@ class RelatorioService:
         credito = 0
         pix = 0
 
-        pendurado_por_cliente = defaultdict(float)
+        clientes = defaultdict(lambda: {
+            "total": 0,
+            "pago": 0,
+            "saldo": 0,
+        })
 
         # Processar APENAS movimentações com seus financeiros vinculados
         for m in movs:
@@ -41,8 +45,13 @@ class RelatorioService:
 
             saldo = valor - (m.valor_pago or 0)
 
-            if saldo > 0 and m.cliente_id:
-                pendurado_por_cliente[m.cliente_id] += saldo
+            saldo = valor - (m.valor_pago or 0)
+
+        if m.cliente_id is not None:
+
+            clientes[m.cliente_id]["total"] += valor
+            clientes[m.cliente_id]["pago"] += (m.valor_pago or 0)
+            clientes[m.cliente_id]["saldo"] += saldo
 
             # Buscar financeiros vinculados a ESTA movimentação
             for f in getattr(m, "financeiros", []) or []:
@@ -63,6 +72,8 @@ class RelatorioService:
             "debito": debito,
             "credito": credito,
             "pix": pix,
-            "pendurado_total": sum(pendurado_por_cliente.values()),
-            "pendurado_por_cliente": pendurado_por_cliente,
+            "pendurado_total": sum(
+            c["saldo"] for c in clientes.values()
+        ),
+        "clientes": clientes,
         }

@@ -33,6 +33,23 @@ class RelatorioView(ft.Column):
             expand=True,
         )
 
+        self.field_inicio = ft.TextField(
+            label="Data início",
+            hint_text="dd/mm/aaaa",
+            width=180,
+        )
+
+        self.field_fim = ft.TextField(
+            label="Data fim",
+            hint_text="dd/mm/aaaa",
+            width=180,
+        )
+
+        hoje = datetime.now().strftime("%d/%m/%Y")
+
+        self.field_inicio.value = hoje
+        self.field_fim.value = hoje
+
         btn = ft.FilledButton(
             "Gerar relatório",
             icon=ft.Icons.REFRESH,
@@ -47,21 +64,61 @@ class RelatorioView(ft.Column):
 
         self.controls = [
             ft.Text("📊 Relatório do Dia", size=22, weight=ft.FontWeight.BOLD),
-            ft.Row([btn, btn_copy]),
+            ft.Row([
+                self.field_inicio,
+                self.field_fim,
+                btn,
+                btn_copy,
+            ]),
             self.txt
         ]
 
     def _gerar(self, e=None):
 
-        inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        fim = inicio + timedelta(days=1)
+        try:
+
+            inicio = datetime.strptime(
+                self.field_inicio.value,
+                "%d/%m/%Y"
+            )
+
+            fim = datetime.strptime(
+                self.field_fim.value,
+                "%d/%m/%Y"
+            )
+
+            inicio = inicio.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+            fim = fim.replace(
+                hour=23,
+                minute=59,
+                second=59,
+                microsecond=999999,
+            )
+
+        except ValueError:
+
+            self.show_snack_bar(
+                "Datas inválidas. Use dd/mm/aaaa"
+            )
+
+            return
 
         r = self.service.gerar(inicio, fim)
 
         texto = []
 
         texto.append("📊 RELATÓRIO DO DIA")
-        texto.append(f"Data: {inicio.strftime('%d/%m/%Y')}")
+        texto.append(
+            f"Período: "
+            f"{inicio.strftime('%d/%m/%Y')} até "
+            f"{fim.strftime('%d/%m/%Y')}"
+        )
         texto.append("")
         texto.append("🛒 ITENS VENDIDOS")
 
@@ -80,9 +137,17 @@ class RelatorioView(ft.Column):
         texto.append("")
         texto.append("🧾 PENDURADOS POR CLIENTE")
 
-        for cid, valor in r["pendurado_por_cliente"].items():
-            nome = self._clientes_map.get(cid, f"#{cid}")
-            texto.append(f"- {nome}: R$ {valor:.2f}")
+        for cid, d in r["clientes"].items():
+            if cid is None:
+                nome = "❌ SEM CLIENTE (erro de dados)"
+            else:
+                nome = self._clientes_map.get(cid, f"#{cid}")
+            texto.append(
+                f"- {nome} | "
+                f"Total: R$ {d['total']:.2f} | "
+                f"Pago: R$ {d['pago']:.2f} | "
+                f"Saldo: R$ {d['saldo']:.2f}"
+            )
 
         self.txt.value = "\n".join(texto)
         self._page.update()

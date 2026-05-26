@@ -64,6 +64,15 @@ class MovimentacaoRepository:
         )
 
         return self.session.exec(statement).all()
+    
+    def existe_movimentacao_do_item(self, item_id: int) -> bool:
+
+        statement = (
+            select(Movimentacao)
+            .where(Movimentacao.item_id == item_id)
+        )
+
+        return self.session.exec(statement).first() is not None
 
     def create(self, dados: MovimentacaoBaseCreate, valor_unitario: float) -> Movimentacao:
         movimentacao = Movimentacao(
