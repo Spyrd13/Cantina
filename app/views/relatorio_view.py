@@ -125,14 +125,28 @@ class RelatorioView(ft.Column):
         for nome, d in r["itens"].items():
             texto.append(f"- {nome}: {d['qtd']}x | R$ {d['valor']:.2f}")
 
+        total_recebido = (
+            r["dinheiro"]
+            + r["debito"]
+            + r["credito"]
+            + r["pix"]
+            + r["pendurado_total"]
+        )
+
         texto.append("")
         texto.append("💰 RESUMO FINANCEIRO")
-        texto.append(f"Total vendas: R$ {r['total_vendas']:.2f}")
-        texto.append(f"Dinheiro: R$ {r['dinheiro']:.2f}")
-        texto.append(f"Débito: R$ {r['debito']:.2f}")
-        texto.append(f"Crédito: R$ {r['credito']:.2f}")
-        texto.append(f"Pix: R$ {r['pix']:.2f}")
-        texto.append(f"Pendurado total: R$ {r['pendurado_total']:.2f}")
+        texto.append(f"Total vendido: R$ {r['total_vendas']:.2f}")
+
+        texto.append("")
+        texto.append("Recebido:")
+        texto.append(f"- Dinheiro: R$ {r['dinheiro']:.2f}")
+        texto.append(f"- Débito: R$ {r['debito']:.2f}")
+        texto.append(f"- Crédito: R$ {r['credito']:.2f}")
+        texto.append(f"- Pix: R$ {r['pix']:.2f}")
+        texto.append(f"- Pendurado: R$ {r['pendurado_total']:.2f}")
+
+        texto.append("")
+        texto.append(f"Total recebido: R$ {total_recebido:.2f}")
 
         texto.append("")
         texto.append("🧾 PENDURADOS POR CLIENTE")
@@ -142,11 +156,13 @@ class RelatorioView(ft.Column):
                 nome = "❌ SEM CLIENTE (erro de dados)"
             else:
                 nome = self._clientes_map.get(cid, f"#{cid}")
+            status_pago = "✔" if d["saldo"] <= 0 else "✘"
+
             texto.append(
                 f"- {nome} | "
                 f"Total: R$ {d['total']:.2f} | "
-                f"Pago: R$ {d['pago']:.2f} | "
-                f"Saldo: R$ {d['saldo']:.2f}"
+                f"Saldo: R$ {d['saldo']:.2f} | "
+                f"Pago: {status_pago}"
             )
 
         self.txt.value = "\n".join(texto)

@@ -47,23 +47,23 @@ class RelatorioService:
 
             saldo = valor - (m.valor_pago or 0)
 
-        if m.cliente_id is not None:
+            if m.cliente_id is not None:
 
-            clientes[m.cliente_id]["total"] += valor
-            clientes[m.cliente_id]["pago"] += (m.valor_pago or 0)
-            clientes[m.cliente_id]["saldo"] += saldo
+                clientes[m.cliente_id]["total"] += valor
+                clientes[m.cliente_id]["pago"] += (m.valor_pago or 0)
+                clientes[m.cliente_id]["saldo"] += saldo
 
-            # Buscar financeiros vinculados a ESTA movimentação
-            for f in getattr(m, "financeiros", []) or []:
-                if f.tipo == TipoFinanceiro.receita:
-                    if f.pagamento == TipoPagamento.dinheiro:
-                        dinheiro += f.valor
-                    elif f.pagamento == TipoPagamento.debito:
-                        debito += f.valor
-                    elif f.pagamento == TipoPagamento.credito:
-                        credito += f.valor
-                    elif f.pagamento == TipoPagamento.pix:
-                        pix += f.valor
+                # Buscar financeiros vinculados a ESTA movimentação
+                for f in getattr(m, "financeiros", []) or []:
+                    if f.tipo == TipoFinanceiro.receita:
+                        if f.pagamento == TipoPagamento.dinheiro:
+                            dinheiro += f.valor
+                        elif f.pagamento == TipoPagamento.debito:
+                            debito += f.valor
+                        elif f.pagamento == TipoPagamento.credito:
+                            credito += f.valor
+                        elif f.pagamento == TipoPagamento.pix:
+                            pix += f.valor
 
         return {
             "itens": itens,
