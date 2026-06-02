@@ -130,7 +130,6 @@ class RelatorioView(ft.Column):
             + r["debito"]
             + r["credito"]
             + r["pix"]
-            + r["pendurado_total"]
         )
 
         texto.append("")
@@ -147,6 +146,7 @@ class RelatorioView(ft.Column):
 
         texto.append("")
         texto.append(f"Total recebido: R$ {total_recebido:.2f}")
+        texto.append(f"Saldo pendente: R$ {r['pendurado_total']:.2f}")
 
         texto.append("")
         texto.append("🧾 PENDURADOS POR CLIENTE")

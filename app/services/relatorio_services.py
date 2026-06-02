@@ -38,6 +38,15 @@ class RelatorioService:
             nome_item = item.nome if item else f"Item {m.item_id}"
 
             valor = m.valor_unitario * m.quantidade
+
+            print(
+                f"MOV={m.id} | "
+                f"CLIENTE={m.cliente_id} | "
+                f"VALOR={valor:.2f} | "
+                f"VALOR_PAGO={m.valor_pago} | "
+                f"FINANCEIROS={len(getattr(m, 'financeiros', []) or [])}"
+            )
+
             total_vendas += valor
 
             itens[nome_item]["qtd"] += m.quantidade
@@ -53,17 +62,17 @@ class RelatorioService:
                 clientes[m.cliente_id]["pago"] += (m.valor_pago or 0)
                 clientes[m.cliente_id]["saldo"] += saldo
 
-                # Buscar financeiros vinculados a ESTA movimentação
-                for f in getattr(m, "financeiros", []) or []:
-                    if f.tipo == TipoFinanceiro.receita:
-                        if f.pagamento == TipoPagamento.dinheiro:
-                            dinheiro += f.valor
-                        elif f.pagamento == TipoPagamento.debito:
-                            debito += f.valor
-                        elif f.pagamento == TipoPagamento.credito:
-                            credito += f.valor
-                        elif f.pagamento == TipoPagamento.pix:
-                            pix += f.valor
+            # Processa os financeiros independente de ter cliente
+            for f in getattr(m, "financeiros", []) or []:
+                if f.tipo == TipoFinanceiro.receita:
+                    if f.pagamento == TipoPagamento.dinheiro:
+                        dinheiro += f.valor
+                    elif f.pagamento == TipoPagamento.debito:
+                        debito += f.valor
+                    elif f.pagamento == TipoPagamento.credito:
+                        credito += f.valor
+                    elif f.pagamento == TipoPagamento.pix:
+                        pix += f.valor
 
         return {
             "itens": itens,
