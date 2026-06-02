@@ -1,22 +1,14 @@
 from datetime import datetime, timedelta
 
 import flet as ft
-from sqlmodel import Session, select
+from sqlmodel import Session
 
-from app.models.movimentacao import Movimentacao
-from app.services.movimentacao_services import MovimentacaoService
+from app.services.venda_service import VendaService
 from app.services.item_services import ItemService
 from app.services.cliente_services import ClienteService
-from app.services.financeiro_services import FinanceiroService
+from app.services.movimentacao_services import MovimentacaoService
 
-from app.schemas.movimentacao_base import MovimentacaoBaseCreate
-from app.schemas.financeiro_base import financeiroCreate
-
-from app.utils.enums import (
-    TipoMovimentacao,
-    TipoFinanceiro,
-    TipoPagamento,
-)
+from app.utils.enums import TipoMovimentacao, TipoPagamento
 
 
 class VendasView(ft.Column):
@@ -24,18 +16,16 @@ class VendasView(ft.Column):
     def __init__(self, session: Session, page: ft.Page):
         super().__init__(expand=True, spacing=0)
 
-        self.session = session
-        self._page   = page
-        
+        self.session  = session
+        self._page    = page
 
-        self.service             = MovimentacaoService(session)
-        self.item_service        = ItemService(session)
-        self.cliente_service     = ClienteService(session)
-        self.financeiro_service  = FinanceiroService(session)
+        self.venda_service    = VendaService(session)
+        self.item_service     = ItemService(session)
+        self.cliente_service  = ClienteService(session)
+        self.mov_service      = MovimentacaoService(session)
 
         self.itens_pedido = []
 
-        # Cache para evitar queries repetidas ao renderizar o histórico
         self._itens_map    = {}
         self._clientes_map = {}
 
@@ -103,9 +93,7 @@ class VendasView(ft.Column):
         )
 
         self.tabela_pedido = ft.Container()
-
-        self.txt_total = ft.Text("Total: R$ 0.00", size=18, weight=ft.FontWeight.BOLD)
-
+        self.txt_total     = ft.Text("Total: R$ 0.00", size=18, weight=ft.FontWeight.BOLD)
         self.tabela_vendas = ft.Container(expand=True)
 
         self._carregar_tabela_vendas()
@@ -120,26 +108,21 @@ class VendasView(ft.Column):
                     controls=[
                         ft.Text("Vendas", size=24, weight=ft.FontWeight.BOLD),
                         ft.Divider(),
-
                         ft.Row([self.dd_item_venda, self.field_qtd_venda, btn_add_item]),
                         ft.Row([self.dd_pagamento, self.cb_pendurado]),
                         ft.Row([self.dd_cliente_venda]),
-
                         ft.Container(height=10),
-
                         ft.Text("Pedido", size=18, weight=ft.FontWeight.BOLD),
                         self.tabela_pedido,
                         self.txt_total,
                         self.msg_erro,
                         self.msg_ok,
-
                         ft.Row([btn_finalizar]),
                         ft.Divider(),
-
                         ft.Text("Histórico", size=18, weight=ft.FontWeight.BOLD),
                         self.tabela_vendas,
-                    ]
-                )
+                    ],
+                ),
             )
         ]
 
@@ -158,58 +141,55 @@ class VendasView(ft.Column):
     # ============================================================
 
     def _adicionar_item(self, e):
-        try:
-            if not self.dd_item_venda.value:
-                self.msg_erro.value = "Selecione um item."
-                self._page.update()
-                return
+        self.msg_erro.value = ""
 
+        if not self.dd_item_venda.value:
+            self.msg_erro.value = "Selecione um item."
+            self._page.update()
+            return
+
+        try:
             item_id    = int(self.dd_item_venda.value)
             quantidade = int(self.field_qtd_venda.value or 1)
-
-            if quantidade <= 0:
-                self.msg_erro.value = "Quantidade deve ser maior que zero."
-                self._page.update()
-                return
-
-            item = self.item_service.buscar_por_id(item_id)
-            if not item:
-                return
-
-            item_existente = next(
-                (i for i in self.itens_pedido if i["item"].id == item.id), None
-            )
-
-            if item_existente:
-                item_existente["quantidade"] += quantidade
-                item_existente["total"] = item_existente["quantidade"] * item_existente["valor_unitario"]
-            else:
-                self.itens_pedido.append({
-                    "item": item,
-                    "quantidade": quantidade,
-                    "valor_unitario": float(item.valor),
-                    "total": float(item.valor) * quantidade,
-                })
-
-            self.msg_erro.value = ""
-            self._renderizar_pedido()
-
-        except Exception as ex:
-            self.msg_erro.value = f"Erro ao adicionar item: {str(ex)}"
+        except ValueError:
+            self.msg_erro.value = "Quantidade inválida."
             self._page.update()
+            return
+
+        if quantidade <= 0:
+            self.msg_erro.value = "Quantidade deve ser maior que zero."
+            self._page.update()
+            return
+
+        item = self.item_service.buscar_por_id(item_id)
+        if not item:
+            self.msg_erro.value = "Item não encontrado."
+            self._page.update()
+            return
+
+        existente = next((i for i in self.itens_pedido if i["item_id"] == item.id), None)
+
+        if existente:
+            existente["quantidade"] += quantidade
+        else:
+            self.itens_pedido.append({
+                "item_id":        item.id,
+                "nome":           item.nome,
+                "valor_unitario": float(item.valor),
+                "quantidade":     quantidade,
+            })
+
+        self._renderizar_pedido()
 
     def _renderizar_pedido(self):
-
-        rows = []
-        total = 0
+        rows  = []
+        total = 0.0
 
         for idx, pedido in enumerate(self.itens_pedido):
-
-            item = pedido["item"]
-            qtd = pedido["quantidade"]
-            subtotal = qtd * item.valor
-
-            total += subtotal
+            qtd      = pedido["quantidade"]
+            valor    = pedido["valor_unitario"]
+            subtotal = qtd * valor
+            total   += subtotal
 
             row = ft.Container(
                 padding=10,
@@ -217,35 +197,16 @@ class VendasView(ft.Column):
                 content=ft.Row(
                     spacing=8,
                     controls=[
-
                         ft.Container(
                             expand=True,
-                            content=ft.Text(
-                                item.nome,
-                                weight=ft.FontWeight.BOLD,
-                            ),
+                            content=ft.Text(pedido["nome"], weight=ft.FontWeight.BOLD),
                         ),
-
-                        ft.Container(
-                            width=70,
-                            content=ft.Text(str(qtd)),
-                        ),
-
+                        ft.Container(width=70,  content=ft.Text(str(qtd))),
+                        ft.Container(width=100, content=ft.Text(f"R$ {valor:.2f}")),
                         ft.Container(
                             width=100,
-                            content=ft.Text(
-                                f"R$ {item.valor:.2f}",
-                            ),
+                            content=ft.Text(f"R$ {subtotal:.2f}", weight=ft.FontWeight.BOLD),
                         ),
-
-                        ft.Container(
-                            width=100,
-                            content=ft.Text(
-                                f"R$ {subtotal:.2f}",
-                                weight=ft.FontWeight.BOLD,
-                            ),
-                        ),
-
                         ft.Container(
                             width=60,
                             content=ft.IconButton(
@@ -258,85 +219,36 @@ class VendasView(ft.Column):
                     ],
                 ),
             )
-
             rows.append(row)
-
             if idx < len(self.itens_pedido) - 1:
-                rows.append(
-                    ft.Divider(
-                        height=1,
-                        thickness=0.5,
-                        color=ft.Colors.GREY_200,
-                    )
-                )
+                rows.append(ft.Divider(height=1, thickness=0.5, color=ft.Colors.GREY_200))
 
         if not rows:
-            rows = [
-                ft.Container(
-                    padding=20,
-                    content=ft.Text(
-                        "Nenhum item no pedido.",
-                        color=ft.Colors.GREY_500,
-                    ),
-                )
-            ]
+            rows = [ft.Container(
+                padding=20,
+                content=ft.Text("Nenhum item no pedido.", color=ft.Colors.GREY_500),
+            )]
+
+        def _header_col(text, width=None, expand=False):
+            return ft.Container(
+                expand=expand,
+                width=width,
+                content=ft.Text(text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
+            )
 
         header = ft.Container(
             bgcolor=ft.Colors.GREY_100,
             padding=10,
-            content=ft.Row(
-                spacing=8,
-                controls=[
-
-                    ft.Container(
-                        expand=True,
-                        content=ft.Text(
-                            "Item",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=70,
-                        content=ft.Text(
-                            "Qtd",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=100,
-                        content=ft.Text(
-                            "Valor",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=100,
-                        content=ft.Text(
-                            "Total",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=60,
-                        content=ft.Text(""),
-                    ),
-                ],
-            ),
+            content=ft.Row(spacing=8, controls=[
+                _header_col("Item",  expand=True),
+                _header_col("Qtd",   width=70),
+                _header_col("Valor", width=100),
+                _header_col("Total", width=100),
+                ft.Container(width=60, content=ft.Text("")),
+            ]),
         )
 
-        tabela = ft.Container(
+        self.tabela_pedido.content = ft.Container(
             bgcolor=ft.Colors.WHITE,
             border=ft.Border(
                 left=ft.BorderSide(1, ft.Colors.GREY_300),
@@ -345,25 +257,13 @@ class VendasView(ft.Column):
                 bottom=ft.BorderSide(1, ft.Colors.GREY_300),
             ),
             border_radius=10,
-            content=ft.Column(
-                spacing=0,
-                controls=[
-                    header,
-
-                    ft.Container(
-                        content=ft.Column(
-                            spacing=0,
-                            controls=rows,
-                        ),
-                    ),
-                ],
-            ),
+            content=ft.Column(spacing=0, controls=[
+                header,
+                ft.Container(content=ft.Column(spacing=0, controls=rows)),
+            ]),
         )
 
-        self.tabela_pedido.content = tabela
-
         self.txt_total.value = f"Total: R$ {total:.2f}"
-
         self._page.update()
 
     def _remover_item(self, e):
@@ -371,7 +271,7 @@ class VendasView(ft.Column):
         self._renderizar_pedido()
 
     # ============================================================
-    # FINALIZAR
+    # FINALIZAR — toda a lógica está no VendaService
     # ============================================================
 
     def _finalizar_venda(self, e):
@@ -391,140 +291,73 @@ class VendasView(ft.Column):
                 return
             cliente_id = int(self.dd_cliente_venda.value)
 
+        pagamento = (
+            TipoPagamento.pix
+            if self.cb_pendurado.value
+            else TipoPagamento(self.dd_pagamento.value)
+        )
+
+        # Converte para o formato que o VendaService espera
+        itens = [
+            {"item_id": p["item_id"], "quantidade": p["quantidade"]}
+            for p in self.itens_pedido
+        ]
+
         try:
-            total_geral = 0
-            movimentacoes = []
-            pagamento = (
-                TipoPagamento.pix
-                if self.cb_pendurado.value
-                else TipoPagamento(self.dd_pagamento.value)
+            self.venda_service.finalizar_venda(
+                itens_pedido=itens,
+                pagamento=pagamento,
+                cliente_id=cliente_id,
             )
-            pago = not self.cb_pendurado.value
-
-            for pedido in self.itens_pedido:
-                item = pedido["item"]
-                qtd  = pedido["quantidade"]
-                total_item = qtd * item.valor
-                total_geral += total_item
-
-                mov = self.service.registrar(
-                    MovimentacaoBaseCreate(
-                        item_id=item.id,
-                        quantidade=qtd,
-                        tipo=TipoMovimentacao.saida,
-                        cliente_id=cliente_id,
-                        valor_pago=total_item if pago else None,
-                    )
-                )
-                movimentacoes.append((mov, item, total_item))
-
-            # Lançamentos financeiros vinculados a cada movimentação
-            for mov, item, total_item in movimentacoes:
-                self.financeiro_service.registrar(
-                    financeiroCreate(
-                        tipo=TipoFinanceiro.receita,
-                        pagamento=pagamento,
-                        valor=total_item,
-                        descricao=f"Venda - {item.nome}",
-                        movimentacao_id=mov.id,
-                        pago=pago,
-                    )
-                )
-
-            self.itens_pedido = []
-            self._renderizar_pedido()
-            self.dd_cliente_venda.value = None
-            self.msg_ok.value = "Venda finalizada com sucesso!"
-
-            # Recarrega o histórico reaproveitando o cache de nomes já carregado
-            self._carregar_tabela_vendas()
-
         except Exception as ex:
             self.msg_erro.value = str(ex)
             self._page.update()
+            return
+
+        # Limpa pedido e atualiza UI
+        self.itens_pedido = []
+        self._renderizar_pedido()
+        self.dd_cliente_venda.value = None
+        self.msg_ok.value = "Venda finalizada com sucesso!"
+        self._carregar_tabela_vendas()
 
     # ============================================================
     # HISTÓRICO
     # ============================================================
-    
-    def _carregar_tabela_vendas(self):
 
+    def _carregar_tabela_vendas(self):
         if not self._itens_map:
-            self._itens_map = {
-                i.id: i.nome
-                for i in self.item_service.listar_todos()
-            }
+            self._itens_map = {i.id: i.nome for i in self.item_service.listar_todos()}
 
         if not self._clientes_map:
-            self._clientes_map = {
-                c.id: c.nome
-                for c in self.cliente_service.listar_todos()
-            }
+            self._clientes_map = {c.id: c.nome for c in self.cliente_service.listar_todos()}
 
-        inicio = datetime.now().replace(
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
+        inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        fim    = inicio + timedelta(days=1)
 
-        fim = inicio + timedelta(days=1)
-
-        movs = self.service.listar_por_periodo(
-            inicio,
-            fim,
-            TipoMovimentacao.saida,
-        )
+        movs = self.mov_service.listar_por_periodo(inicio, fim, TipoMovimentacao.saida)
 
         rows = []
-
         for idx, m in enumerate(movs):
-
             pendurado = m.cliente_id is not None
 
             badge = ft.Container(
-                bgcolor=(
-                    ft.Colors.ORANGE_50
-                    if pendurado
-                    else ft.Colors.GREEN_50
-                ),
+                bgcolor=ft.Colors.ORANGE_50 if pendurado else ft.Colors.GREEN_50,
                 border_radius=6,
-                padding=ft.Padding(
-                    left=8,
-                    top=3,
-                    right=8,
-                    bottom=3,
-                ),
+                padding=ft.Padding(left=8, top=3, right=8, bottom=3),
                 content=ft.Row(
                     spacing=4,
                     tight=True,
                     controls=[
                         ft.Icon(
-                            (
-                                ft.Icons.WARNING_AMBER
-                                if pendurado
-                                else ft.Icons.CHECK_CIRCLE
-                            ),
+                            ft.Icons.WARNING_AMBER if pendurado else ft.Icons.CHECK_CIRCLE,
                             size=13,
-                            color=(
-                                ft.Colors.ORANGE_700
-                                if pendurado
-                                else ft.Colors.GREEN_700
-                            ),
+                            color=ft.Colors.ORANGE_700 if pendurado else ft.Colors.GREEN_700,
                         ),
-
                         ft.Text(
-                            (
-                                "Pendurado"
-                                if pendurado
-                                else "Pago"
-                            ),
+                            "Pendurado" if pendurado else "Pago",
                             size=12,
-                            color=(
-                                ft.Colors.ORANGE_700
-                                if pendurado
-                                else ft.Colors.GREEN_700
-                            ),
+                            color=ft.Colors.ORANGE_700 if pendurado else ft.Colors.GREEN_700,
                         ),
                     ],
                 ),
@@ -536,53 +369,24 @@ class VendasView(ft.Column):
                 content=ft.Row(
                     spacing=8,
                     controls=[
-
                         ft.Container(
                             expand=True,
                             content=ft.Text(
-                                self._itens_map.get(
-                                    m.item_id,
-                                    "-"
-                                ),
+                                self._itens_map.get(m.item_id, "-"),
                                 weight=ft.FontWeight.BOLD,
                             ),
                         ),
-
-                        ft.Container(
-                            width=60,
-                            content=ft.Text(
-                                str(m.quantidade),
-                            ),
-                        ),
-
-                        ft.Container(
-                            width=100,
-                            content=ft.Text(
-                                f"R$ {m.valor_unitario:.2f}",
-                            ),
-                        ),
-
-                        ft.Container(
-                            width=130,
-                            content=badge,
-                        ),
-
+                        ft.Container(width=60,  content=ft.Text(str(m.quantidade))),
+                        ft.Container(width=100, content=ft.Text(f"R$ {m.valor_unitario:.2f}")),
+                        ft.Container(width=130, content=badge),
                         ft.Container(
                             width=180,
-                            content=ft.Text(
-                                self._clientes_map.get(
-                                    m.cliente_id,
-                                    "-"
-                                ),
-                            ),
+                            content=ft.Text(self._clientes_map.get(m.cliente_id, "-")),
                         ),
-
                         ft.Container(
                             width=140,
                             content=ft.Text(
-                                m.data.strftime(
-                                    "%d/%m/%Y %H:%M"
-                                ),
+                                m.data.strftime("%d/%m/%Y %H:%M"),
                                 size=12,
                                 color=ft.Colors.GREY_500,
                             ),
@@ -592,98 +396,36 @@ class VendasView(ft.Column):
             )
 
             rows.append(row)
-
             if idx < len(movs) - 1:
-                rows.append(
-                    ft.Divider(
-                        height=1,
-                        thickness=0.5,
-                        color=ft.Colors.GREY_200,
-                    )
-                )
+                rows.append(ft.Divider(height=1, thickness=0.5, color=ft.Colors.GREY_200))
 
         if not rows:
-            rows = [
-                ft.Container(
-                    padding=20,
-                    content=ft.Text(
-                        "Nenhuma venda encontrada.",
-                        color=ft.Colors.GREY_500,
-                    ),
-                )
-            ]
+            rows = [ft.Container(
+                padding=20,
+                content=ft.Text("Nenhuma venda encontrada.", color=ft.Colors.GREY_500),
+            )]
+
+        def _header_col(text, width=None, expand=False):
+            return ft.Container(
+                expand=expand,
+                width=width,
+                content=ft.Text(text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
+            )
 
         header = ft.Container(
             bgcolor=ft.Colors.GREY_100,
             padding=10,
-            content=ft.Row(
-                spacing=8,
-                controls=[
-
-                    ft.Container(
-                        expand=True,
-                        content=ft.Text(
-                            "Item",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=60,
-                        content=ft.Text(
-                            "Qtd",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=100,
-                        content=ft.Text(
-                            "Valor",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=130,
-                        content=ft.Text(
-                            "Pagamento",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=180,
-                        content=ft.Text(
-                            "Cliente",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-
-                    ft.Container(
-                        width=140,
-                        content=ft.Text(
-                            "Data",
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    ),
-                ],
-            ),
+            content=ft.Row(spacing=8, controls=[
+                _header_col("Item",      expand=True),
+                _header_col("Qtd",       width=60),
+                _header_col("Valor",     width=100),
+                _header_col("Pagamento", width=130),
+                _header_col("Cliente",   width=180),
+                _header_col("Data",      width=140),
+            ]),
         )
 
-        tabela = ft.Container(
+        self.tabela_vendas.content = ft.Container(
             expand=True,
             bgcolor=ft.Colors.WHITE,
             border=ft.Border(
@@ -698,7 +440,6 @@ class VendasView(ft.Column):
                 spacing=0,
                 controls=[
                     header,
-
                     ft.Container(
                         expand=True,
                         content=ft.Column(
@@ -711,8 +452,6 @@ class VendasView(ft.Column):
             ),
         )
 
-        self.tabela_vendas.content = tabela
-
         self._page.update()
 
     # ============================================================
@@ -721,7 +460,7 @@ class VendasView(ft.Column):
 
     def _opcoes_itens(self):
         itens = self.item_service.listar_todos()
-        self._itens_map = {i.id: i.nome for i in itens}   # aproveita pra popular o cache
+        self._itens_map = {i.id: i.nome for i in itens}
         return [
             ft.dropdown.Option(key=str(i.id), text=f"{i.nome} (R$ {i.valor:.2f})")
             for i in itens
@@ -729,17 +468,12 @@ class VendasView(ft.Column):
 
     def _opcoes_clientes(self):
         clientes = self.cliente_service.listar_todos()
-        self._clientes_map = {c.id: c.nome for c in clientes}   # aproveita pra popular o cache
+        self._clientes_map = {c.id: c.nome for c in clientes}
         return [
             ft.dropdown.Option(key=str(c.id), text=c.nome)
             for c in clientes
         ]
-    
-    def _hover_row(self, e):
-        e.control.bgcolor = (
-            ft.Colors.GREY_50
-            if e.data == "true"
-            else None
-        )
 
+    def _hover_row(self, e):
+        e.control.bgcolor = ft.Colors.GREY_50 if e.data == "true" else None
         e.control.update()

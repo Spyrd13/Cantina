@@ -62,6 +62,35 @@ class RelatorioService:
                 clientes[m.cliente_id]["pago"] += (m.valor_pago or 0)
                 clientes[m.cliente_id]["saldo"] += saldo
 
+            if (m.valor_pago or 0) > 0 and len(getattr(m, "financeiros", []) or []) == 0:
+                print(
+                    "⚠️ MOVIMENTAÇÃO PAGA SEM FINANCEIRO -> "
+                    f"ID={m.id} | "
+                    f"VALOR={valor:.2f} | "
+                    f"PAGO={m.valor_pago}"
+                )
+
+                print("\n===== RESUMO =====")
+                print("TOTAL_VENDAS =", total_vendas)
+                print("DINHEIRO =", dinheiro)
+                print("DEBITO =", debito)
+                print("CREDITO =", credito)
+                print("PIX =", pix)
+
+                pendurado = sum(c["saldo"] for c in clientes.values())
+                print("PENDURADO =", pendurado)
+
+                print("CLIENTES:")
+                for cid, d in clientes.items():
+                    print(
+                        cid,
+                        "TOTAL=", d["total"],
+                        "PAGO=", d["pago"],
+                        "SALDO=", d["saldo"]
+                    )
+
+                print("==================\n")
+
             # Processa os financeiros independente de ter cliente
             for f in getattr(m, "financeiros", []) or []:
                 if f.tipo == TipoFinanceiro.receita:
