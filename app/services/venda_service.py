@@ -130,7 +130,11 @@ class VendaService:
         # ------------------------------------------------------------------
         # 3. Commit único
         # ------------------------------------------------------------------
-        self.session.commit()
+        try:
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
 
         return {
             "total":         total_geral,

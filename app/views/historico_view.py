@@ -285,10 +285,45 @@ class HistoricoView(ft.Column):
         )
 
         # ======================================================
+        # FILTROS PENDURADOS
+        # ======================================================
+
+        self.dd_cliente_pendurados = ft.Dropdown(
+            label="Cliente",
+            expand=True,
+            value="todos",
+            options=[ft.dropdown.Option("todos", "Todos os clientes")] + [
+                ft.dropdown.Option(str(c.id), c.nome)
+                for c in self.cliente_service.listar_todos()
+            ],
+        )
+
+        self.dp_inicio_pendurados = ft.DatePicker(
+            field_label_text="Data início",
+        )
+
+        self.dp_fim_pendurados = ft.DatePicker(
+            field_label_text="Data fim",
+        )
+
+        self.btn_filtrar_pendurados = ft.FilledButton(
+            "Filtrar",
+            icon=ft.Icons.FILTER_ALT,
+            on_click=self._carregar_historico_pendurados,
+        )
+
+        self.dd_cliente_pendurados.on_change = (
+            self._carregar_historico_pendurados
+        )
+        self.dp_inicio_pendurados.on_change = self._carregar_historico_pendurados
+        self.dp_fim_pendurados.on_change = self._carregar_historico_pendurados
+
+        # ======================================================
         # TABELAS
         # ======================================================
 
         self.tabela_vendas = ft.Column()
+        self.tabela_pendurados = ft.Column()
         self.tabela_estoque = ft.Column()
         self.tabela_financeiro = ft.Column()
 
@@ -331,6 +366,29 @@ class HistoricoView(ft.Column):
                         ]),
 
                         self.tabela_vendas,
+
+                        ft.Container(height=30),
+
+                        # ======================================
+                        # PENDURADOS
+                        # ======================================
+
+                        ft.Text(
+                            "Histórico de Pendurados",
+                            size=18,
+                            weight=ft.FontWeight.BOLD,
+                        ),
+
+                        ft.Row([
+                            self.dd_cliente_pendurados,
+                            self.btn_filtrar_pendurados,
+                        ]),
+                        ft.Row([
+                            self.dp_inicio_pendurados,
+                            self.dp_fim_pendurados,
+                        ]),
+
+                        self.tabela_pendurados,
 
                         ft.Container(height=30),
 
@@ -390,6 +448,7 @@ class HistoricoView(ft.Column):
         ]
 
         self._carregar_historico_vendas()
+        self._carregar_historico_pendurados()
         self._carregar_historico_estoque()
         self._carregar_historico_financeiro()
 
@@ -499,6 +558,118 @@ class HistoricoView(ft.Column):
 
         self._renderizar_tabela(
             self.tabela_vendas,
+            header,
+            rows,
+        )
+
+    # ==========================================================
+    # PENDURADOS
+    # ==========================================================
+
+    def _carregar_historico_pendurados(self, e=None):
+        
+        cliente_id = None
+        if self.dd_cliente_pendurados.value != "todos":
+            cliente_id = int(self.dd_cliente_pendurados.value)
+        
+        inicio = None
+        fim = None
+        
+        if self.dp_inicio_pendurados.value and self.dp_fim_pendurados.value:
+            inicio = datetime.combine(
+                self.dp_inicio_pendurados.value,
+                datetime.min.time(),
+            )
+            fim = datetime.combine(
+                self.dp_fim_pendurados.value,
+                datetime.max.time(),
+            )
+        elif self.dp_inicio_pendurados.value:
+            inicio = datetime.combine(
+                self.dp_inicio_pendurados.value,
+                datetime.min.time(),
+            )
+        elif self.dp_fim_pendurados.value:
+            fim = datetime.combine(
+                self.dp_fim_pendurados.value,
+                datetime.max.time(),
+            )
+        
+        movs = self.mov_service.listar_pendurados(
+            inicio=inicio,
+            fim=fim,
+            cliente_id=cliente_id,
+        )
+        
+        rows = []
+        total_geral = 0.0
+        
+        for mov in movs:
+            item_nome = self._itens_map.get(mov.item_id, "-")
+            cliente_nome = self._clientes_map.get(mov.cliente_id, "-")
+            
+            total = mov.valor_unitario * mov.quantidade
+            total_geral += total
+            
+            rows.append(
+                self._criar_row(
+                    [
+                        (item_nome, True),
+                        (mov.quantidade, False),
+                        (f"R$ {mov.valor_unitario:.2f}", False),
+                        (f"R$ {total:.2f}", False),
+                        (cliente_nome, False),
+                        (mov.data.strftime("%d/%m/%Y %H:%M"), False),
+                    ]
+                )
+            )
+        
+        if rows:
+            total_row = ft.Container(
+                bgcolor=ft.Colors.BLUE_50,
+                content=ft.Row(
+                    spacing=0,
+                    controls=[
+                        ft.Container(
+                            expand=True,
+                            width=None,
+                            padding=10,
+                            content=ft.Text(
+                                "TOTAL",
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                        ),
+                        ft.Container(width=140, padding=10, content=ft.Text("")),
+                        ft.Container(width=140, padding=10, content=ft.Text("")),
+                        ft.Container(width=140, padding=10, content=ft.Text("")),
+                        ft.Container(
+                            width=140,
+                            padding=10,
+                            content=ft.Text(
+                                f"R$ {total_geral:.2f}",
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.BLUE_700,
+                            ),
+                        ),
+                        ft.Container(width=140, padding=10, content=ft.Text("")),
+                    ],
+                ),
+            )
+            rows.append(total_row)
+        
+        header = self._criar_header(
+            [
+                ("Item", True),
+                ("Qtd", False),
+                ("Valor", False),
+                ("Total", False),
+                ("Cliente", False),
+                ("Data", False),
+            ]
+        )
+        
+        self._renderizar_tabela(
+            self.tabela_pendurados,
             header,
             rows,
         )

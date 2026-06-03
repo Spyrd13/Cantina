@@ -26,7 +26,8 @@ class VendasView(ft.Column):
 
         self.itens_pedido = []
 
-        self._itens_map    = {}
+        self._itens_cache = {}
+        self._itens_map   = {}
         self._clientes_map = {}
 
         self._build()
@@ -161,7 +162,7 @@ class VendasView(ft.Column):
             self._page.update()
             return
 
-        item = self.item_service.buscar_por_id(item_id)
+        item = self._itens_cache.get(item_id)
         if not item:
             self.msg_erro.value = "Item não encontrado."
             self._page.update()
@@ -460,6 +461,7 @@ class VendasView(ft.Column):
 
     def _opcoes_itens(self):
         itens = self.item_service.listar_todos()
+        self._itens_cache = {i.id: i for i in itens}
         self._itens_map = {i.id: i.nome for i in itens}
         return [
             ft.dropdown.Option(key=str(i.id), text=f"{i.nome} (R$ {i.valor:.2f})")

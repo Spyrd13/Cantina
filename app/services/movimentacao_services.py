@@ -52,6 +52,34 @@ class MovimentacaoService:
                 raise ValueError("A data de início não pode ser maior que a data de fim.")
             return [MovimentacaoBaseResponse.model_validate(m) for m in self.repo.get_by_periodo(inicio, fim, tipo)]
 
+        def listar_pendurados(
+            self,
+            inicio: datetime | None = None,
+            fim: datetime | None = None,
+            cliente_id: int | None = None,
+        ) -> list[MovimentacaoBaseResponse]:
+            """Retorna movimentações de saída com cliente_id (vendas penduradas)."""
+            movs = self.repo.get_all()
+            resultado = []
+            
+            for m in movs:
+                # Apenas movimentações de saída com cliente
+                if m.tipo != TipoMovimentacao.saida or not m.cliente_id:
+                    continue
+                
+                # Filtro por cliente se fornecido
+                if cliente_id and m.cliente_id != cliente_id:
+                    continue
+                
+                # Filtro por período se fornecido
+                if inicio and fim:
+                    if m.data < inicio or m.data >= fim:
+                        continue
+                
+                resultado.append(MovimentacaoBaseResponse.model_validate(m))
+            
+            return resultado
+
         # ------------------------------------------------------------------ #
         #  Mutações                                                            #
         # ------------------------------------------------------------------ #

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tufi-cantina"
+version = "1.0.0"
+description = "Aplicativo de gestão de vendas para cantina TUFI"
+readme = "README.txt"
+requires-python = ">=3.11"
+license = {text = "EULA"}
+authors = [
+    {name = "TUFI Cantina"}
+]
+
+dependencies = [
+    "flet==0.24.0",
+    "sqlmodel==0.0.14",
+    "SQLAlchemy==2.0.23",
+    "pydantic==2.5.0",
+    "pydantic-settings==2.1.0",
+    "python-dotenv==1.0.0",
+]
+
+[project.scripts]
+tufi = "main:main"
+
+[tool.setuptools]
+packages = ["app"]
+
+[project.urls]
+Homepage = "https://github.com/seu-usuario/tufi"
