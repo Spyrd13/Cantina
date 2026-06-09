@@ -1,7 +1,16 @@
 import os
 import logging
 from pathlib import Path
-from dotenv import load_dotenv
+
+# dotenv is optional at runtime; handle missing package gracefully
+try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover - runtime fallback
+    load_dotenv = lambda *args, **kwargs: None
+    logging.getLogger(__name__).warning(
+        "python-dotenv not installed; .env files will not be loaded. Install with 'pip install python-dotenv'."
+    )
+
 from sqlmodel import SQLModel, create_engine
 
 # Carregar variáveis de ambiente

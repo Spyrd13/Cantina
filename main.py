@@ -1,9 +1,20 @@
 import logging
+from pathlib import Path
 import flet as ft
 from sqlmodel import Session
 from app.core.database import engine, init_db
 
 logger = logging.getLogger(__name__)
+# Ensure a file handler exists for detailed logs
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO)
+
+log_file = Path(__file__).parent / "tufi.log"
+file_handler = logging.FileHandler(log_file, encoding="utf-8")
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(file_formatter)
+logging.getLogger().addHandler(file_handler)
 
 
 def main(page: ft.Page):
