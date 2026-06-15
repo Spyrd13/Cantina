@@ -52,7 +52,7 @@ class HistoricoView(ft.Column):
             label="Categoria",
             width=200,
             value="todos",
-            on_change=self._carregar,
+            on_select=self._carregar,
             options=[
                 ft.dropdown.Option("todos", "Todas"),
                 ft.dropdown.Option("venda", "Vendas"),
@@ -67,7 +67,7 @@ class HistoricoView(ft.Column):
             label="Operação",
             width=200,
             value="todos",
-            on_change=self._carregar,
+            on_select=self._carregar,
             options=[
                 ft.dropdown.Option("todos", "Todas"),
                 ft.dropdown.Option("criacao", "Criação"),
@@ -94,7 +94,7 @@ class HistoricoView(ft.Column):
             label="Mês",
             width=160,
             value="todos",
-            on_change=self._carregar,
+            on_select=self._carregar,
             options=[
                 ft.dropdown.Option("todos", "Todos"),
                 ft.dropdown.Option("01", "Janeiro"),
@@ -116,7 +116,7 @@ class HistoricoView(ft.Column):
             label="Ano",
             width=120,
             value=str(ano_atual),
-            on_change=self._carregar,
+            on_select=self._carregar,
             options=[
                 ft.dropdown.Option(str(ano), str(ano))
                 for ano in range(ano_atual - 2, ano_atual + 2)

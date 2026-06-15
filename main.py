@@ -3,6 +3,7 @@ from pathlib import Path
 import flet as ft
 from sqlmodel import Session
 from app.core.database import engine, init_db
+from app.models import Cliente, Financeiro, Item, Movimentacao, Historico
 
 logger = logging.getLogger(__name__)
 # Ensure a file handler exists for detailed logs
