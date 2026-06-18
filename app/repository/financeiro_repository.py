@@ -51,17 +51,24 @@ class FinanceiroRepository:
 
     def get_by_periodo(
         self,
-        inicio: datetime,
-        fim: datetime,
+        inicio: datetime | None = None,
+        fim: datetime | None = None,
     ) -> list[Financeiro]:
 
-        statement = (
-            select(Financeiro)
-            .where(
-                Financeiro.data >= inicio,
-                Financeiro.data < fim,
+        statement = select(Financeiro)
+
+        if inicio:
+            statement = statement.where(
+                Financeiro.data >= inicio
             )
-            .order_by(Financeiro.data.desc())
+
+        if fim:
+            statement = statement.where(
+                Financeiro.data <= fim
+            )
+
+        statement = statement.order_by(
+            Financeiro.data.desc()
         )
 
         return self.session.exec(statement).all()

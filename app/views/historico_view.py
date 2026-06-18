@@ -1,48 +1,41 @@
+import json
 import flet as ft
-import logging
-from datetime import datetime
 from sqlmodel import Session
 
 from app.services.historico_services import HistoricoService
 
 
 class HistoricoView(ft.Column):
+    def __init__(
+        self,
+        session: Session,
+        page: ft.Page,
+    ):
+        super().__init__(expand=True)
 
-    def __init__(self, session: Session, page: ft.Page):
-        super().__init__(expand=True, spacing=0)
-
-        self.session = session
         self._page = page
+        self.service = HistoricoService(session)
+        self.limite = 100
+        self._montado = False
 
-        try:
-            self.historico_service = HistoricoService(session)
-            self._build()
-        except Exception as ex:
-            logging.getLogger(__name__).exception("Erro ao construir HistoricoView: %s", ex)
-            self.controls = [
-                ft.Container(
-                    padding=24,
-                    content=ft.Column(controls=[
-                        ft.Text("Erro ao carregar o Histórico", color=ft.Colors.RED),
-                        ft.Text(str(ex)),
-                    ]),
-                )
-            ]
+        self._build()
 
-    # ==========================================================
+    # ==================================================
+    # LIFECYCLE
+    # ==================================================
+
+    def did_mount(self):
+        self._montado = True
+        self._carregar()
+
+    # ==================================================
     # BUILD
-    # ==========================================================
+    # ==================================================
 
     def _build(self):
-        self._limite = 50
-        ano_atual = datetime.now().year
 
-        # ======================================================
-        # FILTROS
-        # ======================================================
-
-        self.field_busca = ft.TextField(
-            label="Buscar na descrição",
+        self.tf_busca = ft.TextField(
+            label="Buscar descrição",
             expand=True,
             prefix_icon=ft.Icons.SEARCH,
             on_change=self._carregar,
@@ -50,103 +43,48 @@ class HistoricoView(ft.Column):
 
         self.dd_entidade = ft.Dropdown(
             label="Categoria",
-            width=200,
+            width=180,
             value="todos",
-            on_select=self._carregar,
             options=[
-                ft.dropdown.Option("todos", "Todas"),
-                ft.dropdown.Option("venda", "Vendas"),
-                ft.dropdown.Option("estoque", "Estoque"),
-                ft.dropdown.Option("financeiro", "Financeiro"),
-                ft.dropdown.Option("cliente", "Clientes"),
-                ft.dropdown.Option("item", "Itens"),
+                ft.dropdown.Option("todos"),
+                ft.dropdown.Option("cliente"),
+                ft.dropdown.Option("item"),
+                ft.dropdown.Option("financeiro"),
+                ft.dropdown.Option("estoque"),
+                ft.dropdown.Option("venda"),
             ],
         )
+        self.dd_entidade.on_change = self._carregar
 
         self.dd_operacao = ft.Dropdown(
             label="Operação",
-            width=200,
+            width=180,
             value="todos",
-            on_select=self._carregar,
             options=[
-                ft.dropdown.Option("todos", "Todas"),
-                ft.dropdown.Option("criacao", "Criação"),
-                ft.dropdown.Option("edicao", "Edição"),
-                ft.dropdown.Option("exclusao", "Exclusão"),
-                ft.dropdown.Option("pagamento", "Pagamento"),
-                ft.dropdown.Option("entrada", "Entrada"),
-                ft.dropdown.Option("ajuste", "Ajuste"),
-                ft.dropdown.Option("perda", "Perda"),
+                ft.dropdown.Option("todos"),
+                ft.dropdown.Option("criacao"),
+                ft.dropdown.Option("edicao"),
+                ft.dropdown.Option("exclusao"),
+                ft.dropdown.Option("entrada"),
+                ft.dropdown.Option("ajuste"),
+                ft.dropdown.Option("pagamento"),
+                ft.dropdown.Option("perda"),
             ],
         )
+        self.dd_operacao.on_change = self._carregar
 
-        self.dp_inicio = ft.DatePicker(
-            field_label_text="Data início",
-            on_change=self._carregar,
-        )
-
-        self.dp_fim = ft.DatePicker(
-            field_label_text="Data fim",
-            on_change=self._carregar,
-        )
-
-        self.dd_mes = ft.Dropdown(
-            label="Mês",
-            width=160,
-            value="todos",
-            on_select=self._carregar,
-            options=[
-                ft.dropdown.Option("todos", "Todos"),
-                ft.dropdown.Option("01", "Janeiro"),
-                ft.dropdown.Option("02", "Fevereiro"),
-                ft.dropdown.Option("03", "Março"),
-                ft.dropdown.Option("04", "Abril"),
-                ft.dropdown.Option("05", "Maio"),
-                ft.dropdown.Option("06", "Junho"),
-                ft.dropdown.Option("07", "Julho"),
-                ft.dropdown.Option("08", "Agosto"),
-                ft.dropdown.Option("09", "Setembro"),
-                ft.dropdown.Option("10", "Outubro"),
-                ft.dropdown.Option("11", "Novembro"),
-                ft.dropdown.Option("12", "Dezembro"),
-            ],
-        )
-
-        self.dd_ano = ft.Dropdown(
-            label="Ano",
-            width=120,
-            value=str(ano_atual),
-            on_select=self._carregar,
-            options=[
-                ft.dropdown.Option(str(ano), str(ano))
-                for ano in range(ano_atual - 2, ano_atual + 2)
-            ],
-        )
-
-        self.btn_filtrar = ft.FilledButton(
-            "Filtrar",
-            icon=ft.Icons.FILTER_ALT,
-            on_click=self._carregar,
-        )
-
-        # ======================================================
-        # TABELA
-        # ======================================================
-
-        self.tabela = ft.Column()
-
-        self.btn_carregar_mais = ft.TextButton(
-            "Carregar mais",
-            on_click=self._carregar_mais,
+        self.tabela = ft.Column(
+            spacing=0,
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
         )
 
         self.controls = [
             ft.Container(
                 expand=True,
-                padding=24,
+                padding=20,
                 content=ft.Column(
                     expand=True,
-                    scroll=ft.ScrollMode.AUTO,
                     controls=[
                         ft.Text(
                             "Histórico / Auditoria",
@@ -154,185 +92,182 @@ class HistoricoView(ft.Column):
                             weight=ft.FontWeight.BOLD,
                         ),
                         ft.Divider(),
-                        ft.Row([
-                            self.field_busca,
-                            self.dd_entidade,
-                            self.dd_operacao,
-                            self.btn_filtrar,
-                        ]),
-                        ft.Row([
-                            self.dp_inicio,
-                            self.dp_fim,
-                            self.dd_mes,
-                            self.dd_ano,
-                        ]),
-                        self.tabela,
-                        self.btn_carregar_mais,
+                        ft.Row(
+                            controls=[
+                                self.tf_busca,
+                                self.dd_entidade,
+                                self.dd_operacao,
+                                ft.FilledButton(
+                                    "Atualizar",
+                                    icon=ft.Icons.REFRESH,
+                                    on_click=self._carregar,
+                                ),
+                            ]
+                        ),
+                        ft.Container(
+                            expand=True,
+                            border=ft.Border(
+                                left=ft.BorderSide(1, ft.Colors.GREY_300),
+                                top=ft.BorderSide(1, ft.Colors.GREY_300),
+                                right=ft.BorderSide(1, ft.Colors.GREY_300),
+                                bottom=ft.BorderSide(1, ft.Colors.GREY_300),
+                            ),
+                            border_radius=10,
+                            content=self.tabela,
+                        ),
                     ],
                 ),
             )
         ]
 
-        self._carregar()
-
-    # ==========================================================
+    # ==================================================
     # CARREGAR
-    # ==========================================================
+    # ==================================================
 
     def _carregar(self, e=None):
-        try:
-            busca = self.field_busca.value.strip().lower() if self.field_busca.value else ""
+
+        entidade = None
+        operacao = None
+        descricao = None
+
+        if self.dd_entidade.value and self.dd_entidade.value != "todos":
             entidade = self.dd_entidade.value
+
+        if self.dd_operacao.value and self.dd_operacao.value != "todos":
             operacao = self.dd_operacao.value
-            inicio, fim = self._get_periodo()
 
-            registros = self.historico_service.listar_tudo(limite=self._limite)
+        if self.tf_busca.value:
+            descricao = self.tf_busca.value.strip()
 
-            rows = []
+        registros = self.service.buscar(
+            limite=self.limite,
+            entidade=entidade,
+            operacao=operacao,
+            descricao=descricao,
+        )
 
-            for reg in registros:
+        linhas = []
 
-                if entidade != "todos" and reg.entidade != entidade:
-                    continue
-
-                if operacao != "todos" and reg.operacao != operacao:
-                    continue
-
-                if inicio and fim:
-                    if reg.data < inicio or reg.data >= fim:
-                        continue
-
-                if busca and busca not in reg.descricao.lower():
-                    continue
-
-                rows.append(self._criar_row([
-                    (reg.data.strftime("%d/%m/%Y %H:%M"), False),
-                    (reg.entidade.capitalize(), False),
-                    (reg.operacao.capitalize(), False),
-                    (reg.descricao, True),
-                    (str(reg.entidade_id), False),
-                ]))
-
-            header = self._criar_header([
-                ("Data", False),
-                ("Categoria", False),
-                ("Operação", False),
-                ("Descrição", True),
-                ("ID Ref.", False),
-            ])
-
-            self._renderizar_tabela(header, rows)
-
-        except Exception as ex:
-            logging.getLogger(__name__).exception("Erro ao carregar histórico: %s", ex)
-            self.tabela.controls = [
-                ft.Container(padding=20, content=ft.Text("Erro ao carregar histórico."))
-            ]
-            self._page.update()
-
-    # ==========================================================
-    # PERÍODO
-    # ==========================================================
-
-    def _get_periodo(self):
-        if self.dp_inicio.value or self.dp_fim.value:
-            inicio = datetime.combine(self.dp_inicio.value, datetime.min.time()) if self.dp_inicio.value else datetime.min
-            fim = datetime.combine(self.dp_fim.value, datetime.max.time()) if self.dp_fim.value else datetime.max
-            return inicio, fim
-
-        if self.dd_mes.value != "todos":
-            mes_num = int(self.dd_mes.value)
-            ano_num = int(self.dd_ano.value)
-            inicio = datetime(ano_num, mes_num, 1)
-            fim = datetime(ano_num + 1, 1, 1) if mes_num == 12 else datetime(ano_num, mes_num + 1, 1)
-            return inicio, fim
-
-        return None, None
-
-    # ==========================================================
-    # HELPERS DE UI
-    # ==========================================================
-
-    def _renderizar_tabela(self, header, rows):
-        if not rows:
-            rows = [
-                ft.Container(
-                    padding=20,
-                    content=ft.Text("Nenhum registro encontrado.", color=ft.Colors.GREY_500),
-                )
-            ]
-
-        self.tabela.controls = [
+        linhas.append(
             ft.Container(
-                border=ft.Border.all(1, ft.Colors.GREY_300),
-                border_radius=10,
-                bgcolor=ft.Colors.WHITE,
-                content=ft.Column(
-                    spacing=0,
+                bgcolor=ft.Colors.GREY_200,
+                padding=10,
+                content=ft.Row(
                     controls=[
-                        header,
-                        ft.Container(
-                            height=500,
-                            content=ft.Column(
-                                scroll=ft.ScrollMode.AUTO,
-                                spacing=0,
-                                controls=rows,
-                            ),
-                        ),
-                    ],
+                        ft.Text("Data", width=170, weight=ft.FontWeight.BOLD),
+                        ft.Text("Categoria", width=120, weight=ft.FontWeight.BOLD),
+                        ft.Text("Operação", width=120, weight=ft.FontWeight.BOLD),
+                        ft.Text("Descrição", expand=True, weight=ft.FontWeight.BOLD),
+                        ft.Text("ID", width=80, weight=ft.FontWeight.BOLD),
+                        ft.Text("", width=50),
+                    ]
                 ),
             )
-        ]
-
-        self._page.update()
-
-    def _criar_header(self, colunas):
-        return ft.Container(
-            bgcolor=ft.Colors.GREY_100,
-            content=ft.Row(
-                spacing=0,
-                controls=[
-                    ft.Container(
-                        expand=expand,
-                        width=None if expand else 160,
-                        padding=10,
-                        content=ft.Text(
-                            texto,
-                            size=12,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREY_700,
-                        ),
-                    )
-                    for texto, expand in colunas
-                ],
-            ),
         )
 
-    def _criar_row(self, colunas):
-        return ft.Container(
-            on_hover=self._hover_row,
-            content=ft.Row(
-                spacing=0,
-                controls=[
-                    ft.Container(
-                        expand=expand,
-                        width=None if expand else 160,
-                        padding=10,
-                        content=ft.Text(
-                            str(texto),
-                            no_wrap=True,
-                            overflow=ft.TextOverflow.ELLIPSIS,
-                        ),
-                    )
-                    for texto, expand in colunas
-                ],
+        if not registros:
+            linhas.append(
+                ft.Container(
+                    padding=20,
+                    content=ft.Text("Nenhum registro encontrado."),
+                )
+            )
+
+        for h in registros:
+            linhas.append(
+                ft.Container(
+                    padding=10,
+                    border=ft.Border(
+                        bottom=ft.BorderSide(1, ft.Colors.GREY_300)
+                    ),
+                    content=ft.Row(
+                        controls=[
+                            ft.Text(
+                                h.data.strftime("%d/%m/%Y %H:%M"),
+                                width=170,
+                            ),
+                            ft.Text(h.entidade.capitalize(), width=120),
+                            ft.Text(h.operacao.capitalize(), width=120),
+                            ft.Text(
+                                h.descricao,
+                                expand=True,
+                                overflow=ft.TextOverflow.ELLIPSIS,
+                            ),
+                            ft.Text(str(h.entidade_id), width=80),
+                            ft.IconButton(
+                                icon=ft.Icons.VISIBILITY,
+                                tooltip="Detalhes",
+                                data=h,
+                                on_click=self._detalhes,
+                            ),
+                        ]
+                    ),
+                )
+            )
+
+        self.tabela.controls = linhas
+        if self._montado:
+            self.update()
+
+    # ==================================================
+    # DETALHES
+    # ==================================================
+
+    def _detalhes(self, e):
+
+        h = e.control.data
+
+        antes = "-"
+        depois = "-"
+
+        if h.valor_antes:
+            try:
+                antes = json.dumps(
+                    json.loads(h.valor_antes),
+                    indent=4,
+                    ensure_ascii=False,
+                )
+            except Exception:
+                antes = str(h.valor_antes)
+
+        if h.valor_depois:
+            try:
+                depois = json.dumps(
+                    json.loads(h.valor_depois),
+                    indent=4,
+                    ensure_ascii=False,
+                )
+            except Exception:
+                depois = str(h.valor_depois)
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Detalhes do Histórico"),
+            content=ft.Container(
+                width=700,
+                height=500,
+                content=ft.Column(
+                    scroll=ft.ScrollMode.AUTO,
+                    controls=[
+                        ft.Text(f"Data: {h.data.strftime('%d/%m/%Y %H:%M:%S')}"),
+                        ft.Text(f"Categoria: {h.entidade}"),
+                        ft.Text(f"Operação: {h.operacao}"),
+                        ft.Text(f"Descrição: {h.descricao}"),
+                        ft.Divider(),
+                        ft.Text("ANTES", weight=ft.FontWeight.BOLD),
+                        ft.Text(antes, selectable=True),
+                        ft.Divider(),
+                        ft.Text("DEPOIS", weight=ft.FontWeight.BOLD),
+                        ft.Text(depois, selectable=True),
+                    ],
+                ),
             ),
+            actions=[
+                ft.TextButton(
+                    "Fechar",
+                    on_click=lambda _: self._page.pop_dialog(),
+                )
+            ],
         )
 
-    def _hover_row(self, e):
-        e.control.bgcolor = ft.Colors.GREY_50 if e.data == "true" else None
-        e.control.update()
-
-    def _carregar_mais(self, e=None):
-        self._limite += 50
-        self._carregar()
+        self._page.show_dialog(dlg)

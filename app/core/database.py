@@ -2,6 +2,7 @@ import os
 import logging
 from pathlib import Path
 
+
 # dotenv is optional at runtime; handle missing package gracefully
 try:
     from dotenv import load_dotenv
@@ -12,6 +13,8 @@ except Exception:  # pragma: no cover - runtime fallback
     )
 
 from sqlmodel import SQLModel, create_engine
+
+import app.core.historico_listener
 
 # Carregar variáveis de ambiente
 env_file = Path(__file__).parent.parent.parent / ".env.local"

@@ -40,21 +40,25 @@ class FinanceiroService:
     def listar_nao_pagos(self) -> list[financeiroResponse]:
         return [financeiroResponse.model_validate(f) for f in self.repo.get_nao_pagos()]
 
-    def listar_por_periodo(self, inicio: datetime, fim: datetime) -> list[financeiroResponse]:
-        if inicio > fim:
+    def listar_por_periodo(
+        self,
+        inicio: datetime | None,
+        fim: datetime | None,
+    ) -> list[financeiroResponse]:
+        # Só valida se ambos estiverem presentes
+        if inicio is not None and fim is not None and inicio > fim:
             raise ValueError("A data de início não pode ser maior que a data de fim.")
         return [financeiroResponse.model_validate(f) for f in self.repo.get_by_periodo(inicio, fim)]
 
-    def resumo_por_periodo(self, inicio: datetime, fim: datetime) -> dict:
-        """Retorna total de receitas, despesas e saldo no período."""
+    def resumo_por_periodo(
+        self,
+        inicio: datetime | None = None,
+        fim: datetime | None = None,
+    ):
         registros = self.repo.get_by_periodo(inicio, fim)
         receitas = sum(f.valor for f in registros if f.tipo == TipoFinanceiro.receita)
         despesas = sum(f.valor for f in registros if f.tipo == TipoFinanceiro.despesa)
-        return {
-            "receitas": receitas,
-            "despesas": despesas,
-            "saldo": receitas - despesas,
-        }
+        return {"receitas": receitas, "despesas": despesas, "saldo": receitas - despesas}
 
     # ------------------------------------------------------------------ #
     #  Mutações                                                            #
@@ -62,24 +66,19 @@ class FinanceiroService:
 
     def registrar(self, dados: financeiroCreate) -> financeiroResponse:
         self._validar_valor(dados.valor)
-
         if dados.movimentacao_id is not None:
             if not self.mov_repo.get_by_id(dados.movimentacao_id):
                 raise ValueError(f"Movimentação com id {dados.movimentacao_id} não encontrada.")
-
         financeiro = self.repo.create(dados)
         return financeiroResponse.model_validate(financeiro)
 
     def atualizar(self, financeiro_id: int, dados: financeiroUpdate) -> financeiroResponse:
         fin = self._get_or_raise(financeiro_id)
-
         if dados.valor is not None:
             self._validar_valor(dados.valor)
-
         if dados.movimentacao_id is not None:
             if not self.mov_repo.get_by_id(dados.movimentacao_id):
                 raise ValueError(f"Movimentação com id {dados.movimentacao_id} não encontrada.")
-
         fin = self.repo.update(fin, dados)
         return financeiroResponse.model_validate(fin)
 

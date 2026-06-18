@@ -108,6 +108,15 @@ class MovimentacaoService:
         elif dados.tipo == TipoMovimentacao.entrada:
             item.quantidade += dados.quantidade
 
+            self.financeiro_service.registrar(
+                financeiroCreate(
+                    tipo=TipoFinanceiro.despesa,
+                    pagamento=TipoPagamento.pix,  # ou deixe o usuário informar
+                    valor=float(item.valor) * dados.quantidade,
+                    descricao=f"Entrada de estoque - {dados.quantidade}x {item.nome}",
+                    movimentacao_id=None,
+                )
+            )
         elif dados.tipo == TipoMovimentacao.ajuste:
             item.quantidade = dados.quantidade
 

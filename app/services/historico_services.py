@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from typing import Optional
+
 from sqlmodel import Session
 
 from app.models.historico import Historico
@@ -11,9 +12,9 @@ class HistoricoService:
     def __init__(self, session: Session):
         self.repo = HistoricoRepository(session)
 
-    # ------------------------------------------------------------------
-    # Método central — chamado pelos outros services
-    # ------------------------------------------------------------------
+    # =====================================
+    # Registro manual (casos específicos)
+    # =====================================
 
     def registrar(
         self,
@@ -24,50 +25,47 @@ class HistoricoService:
         valor_antes: Optional[dict] = None,
         valor_depois: Optional[dict] = None,
     ) -> Historico:
+
         historico = Historico(
             entidade=entidade,
             operacao=operacao,
             entidade_id=entidade_id,
             descricao=descricao,
-            valor_antes=json.dumps(valor_antes) if valor_antes else None,
-            valor_depois=json.dumps(valor_depois) if valor_depois else None,
+            valor_antes=json.dumps(
+                valor_antes,
+                ensure_ascii=False,
+            ) if valor_antes else None,
+            valor_depois=json.dumps(
+                valor_depois,
+                ensure_ascii=False,
+            ) if valor_depois else None,
         )
-        return self.repo.registrar(historico)
 
-    # ------------------------------------------------------------------
-    # Consultas — usadas pela view
-    # ------------------------------------------------------------------
+        self.repo.session.add(historico)
+        self.repo.session.commit()
+        self.repo.session.refresh(historico)
 
-    def listar_tudo(self, limite: int = 100) -> list[Historico]:
-        return self.repo.get_all(limite=limite)
+        return historico
 
-    def listar_por_entidade(
+    # =====================================
+    # Consultas
+    # =====================================
+
+    def buscar(
         self,
-        entidade: str,
         limite: int = 100,
-    ) -> list[Historico]:
-        return self.repo.get_por_entidade(entidade=entidade, limite=limite)
-
-    def listar_por_periodo(
-        self,
-        inicio: datetime,
-        fim: datetime,
         entidade: Optional[str] = None,
-        limite: int = 100,
+        operacao: Optional[str] = None,
+        descricao: Optional[str] = None,
+        inicio: Optional[datetime] = None,
+        fim: Optional[datetime] = None,
     ) -> list[Historico]:
-        return self.repo.get_por_periodo(
+
+        return self.repo.buscar(
+            limite=limite,
+            entidade=entidade,
+            operacao=operacao,
+            descricao=descricao,
             inicio=inicio,
             fim=fim,
-            entidade=entidade,
-            limite=limite,
-        )
-
-    def listar_por_entidade_id(
-        self,
-        entidade: str,
-        entidade_id: int,
-    ) -> list[Historico]:
-        return self.repo.get_por_entidade_id(
-            entidade=entidade,
-            entidade_id=entidade_id,
         )
