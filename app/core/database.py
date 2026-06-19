@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from pathlib import Path
 
@@ -14,16 +15,32 @@ except Exception:  # pragma: no cover - runtime fallback
 
 from sqlmodel import SQLModel, create_engine
 
-import app.core.historico_listener
 
-# Carregar variáveis de ambiente
-env_file = Path(__file__).parent.parent.parent / ".env.local"
-if not env_file.exists():
-    env_file = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_file)
+# ------------------------------------------------------------------ #
+#  Caminho do banco de dados                                          #
+# ------------------------------------------------------------------ #
+
+if getattr(sys, 'frozen', False):
+    # Rodando empacotado (flet build)
+    # Salva em AppData/Roaming/CantinaTUFI para não precisar de admin
+    BASE_DIR = Path(os.environ.get("APPDATA", Path.home())) / "CantinaTUFI"
+else:
+    # Rodando em desenvolvimento — usa a pasta do projeto
+    BASE_DIR = Path(__file__).parent.parent.parent
+
+DB_DIR = BASE_DIR / "database"
+DB_DIR.mkdir(parents=True, exist_ok=True)
+
+# Carregar variáveis de ambiente (só em desenvolvimento)
+if not getattr(sys, 'frozen', False):
+    env_file = BASE_DIR / ".env.local"
+    if not env_file.exists():
+        env_file = BASE_DIR / ".env"
+    load_dotenv(env_file)
 
 # Configurações
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database/cantina.db")
+_default_db = f"sqlite:///{DB_DIR}/cantina.db"
+DATABASE_URL = os.getenv("DATABASE_URL", _default_db)
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ENV = os.getenv("ENV", "development")
 
@@ -34,14 +51,18 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-# Engine sem echo em produção
+# Engine
 engine = create_engine(
     DATABASE_URL,
-    echo=DEBUG,  # Apenas em desenvolvimento
+    echo=DEBUG,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
 )
 
-# Criar tabelas se não existirem
+
+# ------------------------------------------------------------------ #
+#  Inicialização                                                      #
+# ------------------------------------------------------------------ #
+
 def init_db():
     """Inicializa o banco de dados com as tabelas necessárias."""
     try:

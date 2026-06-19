@@ -35,6 +35,10 @@ class VendaService:
         self.mov_repo     = MovimentacaoRepository(session)
         self.fin_repo     = FinanceiroRepository(session)
 
+        from app.services.historico_services import HistoricoService
+        self.historico_service = HistoricoService(session)
+        
+
     def finalizar_venda(
         self,
         itens_pedido: list[dict],
@@ -58,8 +62,10 @@ class VendaService:
         pendurado = cliente_id is not None
         pago      = not pendurado
 
+        cliente = None
         if pendurado:
-            if not self.cliente_repo.get_by_id(cliente_id):
+            cliente = self.cliente_repo.get_by_id(cliente_id)
+            if not cliente:
                 raise ValueError("Cliente não encontrado.")
             pagamento = TipoPagamento.pix  # placeholder para pendurado
 
@@ -135,6 +141,34 @@ class VendaService:
         except Exception:
             self.session.rollback()
             raise
+
+        # ------------------------------------------------------------------
+        # 4. Histórico (após commit — IDs garantidos)
+        # ------------------------------------------------------------------
+        nome_cliente = cliente.nome if cliente else None
+
+        for mov, item, total_item in movimentacoes:
+            if pendurado:
+                descricao = f"Venda pendurada: {mov.quantidade}x {item.nome} para {nome_cliente} — R$ {total_item:.2f}"
+            else:
+                pag_str = getattr(pagamento, "value", str(pagamento)).capitalize()
+                descricao = f"Venda: {mov.quantidade}x {item.nome} — R$ {total_item:.2f} via {pag_str}"
+
+            self.historico_service.registrar(
+                entidade="venda",
+                operacao="criacao",
+                entidade_id=mov.id,
+                descricao=descricao,
+                valor_depois={
+                    "item": item.nome,
+                    "quantidade": mov.quantidade,
+                    "valor_unitario": float(item.valor),
+                    "valor_total": total_item,
+                    "pagamento": getattr(pagamento, "value", str(pagamento)),
+                    "cliente": nome_cliente,
+                    "pendurado": pendurado,
+                },
+            )
 
         return {
             "total":         total_geral,

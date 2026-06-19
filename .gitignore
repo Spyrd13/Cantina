@@ -57,3 +57,6 @@ __pycache__/
 # Arquivos de configuração do sistema operacional
 *.swp
 
+.build/
+*.build/
+*.build

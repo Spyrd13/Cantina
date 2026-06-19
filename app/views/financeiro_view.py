@@ -289,22 +289,22 @@ class FinanceiroView(ft.Column):
         )
         self.filtro_pagamento.on_change = self._aplicar_filtros
 
-        self.filtro_cliente = ft.Dropdown(
-            label="Cliente",
-            width=220,
-            value="todos",
-            options=[ft.dropdown.Option("todos", "Todos os clientes")],
-        )
+        # self.filtro_cliente = ft.Dropdown(
+        #    label="Cliente",
+        #    width=220,
+        #    value="todos",
+        #    options=[ft.dropdown.Option("todos", "Todos os clientes")],
+        # )
 
-        btn_filtrar_pend = ft.FilledButton(
-            "Filtrar pendentes",
-            icon=ft.Icons.FILTER_ALT,
-            on_click=self._aplicar_filtro_pendurados,
-        )
+        # btn_filtrar_pend = ft.FilledButton(
+        #    "Filtrar pendentes",
+        #    icon=ft.Icons.FILTER_ALT,
+        #    on_click=self._aplicar_filtro_pendurados,
+        # )
 
-        btn_reload = ft.IconButton(
-            icon=ft.Icons.REFRESH,
-            tooltip="Atualizar",
+        btn_reload = ft.FilledButton(
+            "Atualizar",
+            icon=ft.Icons.REFRESH,            
             on_click=self._carregar_tabela,
         )
 
@@ -364,12 +364,12 @@ class FinanceiroView(ft.Column):
                         ft.Container(height=20),
                         ft.Text("Vendas penduradas", size=18, weight=ft.FontWeight.BOLD),
 
-                        ft.ResponsiveRow(
-                            controls=[
-                                ft.Container(col={"sm": 12, "md": 4}, content=self.filtro_cliente),
-                                ft.Container(col={"sm": 12, "md": 3}, content=btn_filtrar_pend),
-                            ]
-                        ),
+                        # ft.ResponsiveRow(
+                           # controls=[
+                           #     ft.Container(col={"sm": 12, "md": 4}, content=self.filtro_cliente),
+                           #     ft.Container(col={"sm": 12, "md": 3}, content=btn_filtrar_pend),
+                           # ]
+                        # ),
 
                         ft.Container(height=10),
                         self.tabela_pend_box,
@@ -383,10 +383,12 @@ class FinanceiroView(ft.Column):
     # ============================================================
 
     def _abrir_inicio(self):
-        self._page.open(self.date_picker_inicio)
+        self.date_picker_inicio.open = True
+        self._page.update()
 
     def _abrir_fim(self):
-        self._page.open(self.date_picker_fim)
+        self.date_picker_fim.open = True
+        self._page.update()
 
     def _on_inicio_picked(self, e):
         if not self.date_picker_inicio.value:
@@ -394,13 +396,11 @@ class FinanceiroView(ft.Column):
 
         self.data_inicio_selecionada = (
             self.date_picker_inicio.value
+            .replace(tzinfo=None)
             .replace(hour=0, minute=0, second=0, microsecond=0)
         )
 
-        self.txt_data_inicio.value = (
-            self.data_inicio_selecionada.strftime("%d/%m/%Y")
-        )
-
+        self.txt_data_inicio.value = self.data_inicio_selecionada.strftime("%d/%m/%Y")
         self._safe_update(self.txt_data_inicio)
         self._carregar_tabela()
 
@@ -411,13 +411,11 @@ class FinanceiroView(ft.Column):
 
         self.data_fim_selecionada = (
             self.date_picker_fim.value
+            .replace(tzinfo=None)
             .replace(hour=23, minute=59, second=59, microsecond=999999)
         )
 
-        self.txt_data_fim.value = (
-            self.data_fim_selecionada.strftime("%d/%m/%Y")
-        )
-
+        self.txt_data_fim.value = self.data_fim_selecionada.strftime("%d/%m/%Y")
         self._safe_update(self.txt_data_fim)
         self._carregar_tabela()
 
@@ -475,14 +473,15 @@ class FinanceiroView(ft.Column):
         self.txt_pendente.value = f"R$ {total_pendente:.2f}" if total_pendente > 0 else "OK"
 
     def _atualizar_filtro_clientes(self):
-        ids = {m.cliente_id for m in self._penduradas_cache}
-        self.filtro_cliente.options = [
-            ft.dropdown.Option("todos", "Todos os clientes"),
-            *[
-                ft.dropdown.Option(str(cid), self._clientes_map.get(cid, f"#{cid}"))
-                for cid in ids
-            ],
-        ]
+        pass
+        # ids = {m.cliente_id for m in self._penduradas_cache}
+        # self.filtro_cliente.options = [
+        #    ft.dropdown.Option("todos", "Todos os clientes"),
+        #    *[
+        #        ft.dropdown.Option(str(cid), self._clientes_map.get(cid, f"#{cid}"))
+        #        for cid in ids
+        #    ],
+        # ]
 
     # ============================================================
     # FILTROS
@@ -514,13 +513,14 @@ class FinanceiroView(ft.Column):
         self._atualizar_resumo(registros)
 
     def _aplicar_filtro_pendurados(self, e=None):
-        val = self.filtro_cliente.value
-        penduradas = (
-            self._penduradas_cache
-            if val == "todos"
-            else [m for m in self._penduradas_cache if str(m.cliente_id) == val]
-        )
-        self._renderizar_pendurados(penduradas)
+        pass
+        # val = self.filtro_cliente.value
+        # penduradas = (
+        #    self._penduradas_cache
+        #    if val == "todos"
+        #    else [m for m in self._penduradas_cache if str(m.cliente_id) == val]
+        # )
+        # self._renderizar_pendurados(penduradas)
 
     # ============================================================
     # RENDER

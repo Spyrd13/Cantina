@@ -24,6 +24,7 @@ def main(page: ft.Page):
         page.theme_mode = ft.ThemeMode.LIGHT
         page.padding = 0
         page.spacing = 0
+        page.window.icon = "favicon.ico"
 
         content = ft.Container(expand=True)
         session = Session(engine)
@@ -34,7 +35,13 @@ def main(page: ft.Page):
 
         def on_nav_change(e):
             try:
+                # O index funciona igual tanto para o Rail quanto para a NavigationBar
                 index = e.control.selected_index
+                
+                # Sincroniza os dois menus para mudarem juntos se a tela for redimensionada
+                nav_rail.selected_index = index
+                nav_bar.selected_index = index
+                
                 if index == 0:
                     from app.views.vendas_view import VendasView
                     navegar(VendasView(session, page))
@@ -64,74 +71,80 @@ def main(page: ft.Page):
 
         page.on_close = lambda e: session.close()
 
-        nav = ft.NavigationRail(
+        # 1. MENU LATERAL (Para PC/Tablet)
+        nav_rail = ft.NavigationRail(
             selected_index=0,
             label_type=ft.NavigationRailLabelType.ALL,
             min_width=100,
             min_extended_width=200,
             bgcolor=ft.Colors.GREEN_200,
             indicator_color=ft.Colors.BLUE_400,
-            pin_trailing_to_bottom=True,  # 👈 fixa o trailing no rodapé
+            pin_trailing_to_bottom=True,
             trailing=ft.Container(
-                content=ft.Text(
-                    "by Rodrigo Assis",
-                    size=11,
-                    color=ft.Colors.GREEN_900,
-                    italic=True,
-                ),
+                content=ft.Text("by Rodrigo Assis", size=11, color=ft.Colors.GREEN_900, italic=True),
                 padding=ft.Padding(left=0, top=0, right=0, bottom=10),
             ),
-        
             destinations=[
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.POINT_OF_SALE_OUTLINED,
-                    selected_icon=ft.Icons.POINT_OF_SALE,
-                    label="Vendas",
-                ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.INVENTORY_2_OUTLINED,
-                    selected_icon=ft.Icons.INVENTORY_2,
-                    label="Estoque",
-                ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.FASTFOOD_OUTLINED,
-                    selected_icon=ft.Icons.FASTFOOD,
-                    label="Itens",
-                ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.PEOPLE_OUTLINED,
-                    selected_icon=ft.Icons.PEOPLE,
-                    label="Clientes",
-                ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.ATTACH_MONEY_OUTLINED,
-                    selected_icon=ft.Icons.ATTACH_MONEY,
-                    label="Financeiro",
-                ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.HISTORY,
-                    selected_icon=ft.Icons.HISTORY,
-                    label="Histórico",
-                ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.INSIGHTS_OUTLINED,
-                    selected_icon=ft.Icons.INSIGHTS,
-                    label="Relatório",
-                ),
+                ft.NavigationRailDestination(icon=ft.Icons.POINT_OF_SALE_OUTLINED, selected_icon=ft.Icons.POINT_OF_SALE, label="Vendas"),
+                ft.NavigationRailDestination(icon=ft.Icons.INVENTORY_2_OUTLINED, selected_icon=ft.Icons.INVENTORY_2, label="Estoque"),
+                ft.NavigationRailDestination(icon=ft.Icons.FASTFOOD_OUTLINED, selected_icon=ft.Icons.FASTFOOD, label="Itens"),
+                ft.NavigationRailDestination(icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label="Clientes"),
+                ft.NavigationRailDestination(icon=ft.Icons.ATTACH_MONEY_OUTLINED, selected_icon=ft.Icons.ATTACH_MONEY, label="Financeiro"),
+                ft.NavigationRailDestination(icon=ft.Icons.HISTORY, selected_icon=ft.Icons.HISTORY, label="Histórico"),
+                ft.NavigationRailDestination(icon=ft.Icons.INSIGHTS_OUTLINED, selected_icon=ft.Icons.INSIGHTS, label="Relatório"),
             ],
             on_change=on_nav_change,
         )
 
+        # 2. MENU INFERIOR (Para Celular)
+        nav_bar = ft.NavigationBar(
+            selected_index=0,
+            bgcolor=ft.Colors.GREEN_200,
+            indicator_color=ft.Colors.BLUE_400,
+            destinations=[
+                ft.NavigationBarDestination(icon=ft.Icons.POINT_OF_SALE_OUTLINED, selected_icon=ft.Icons.POINT_OF_SALE, label="Vendas"),
+                ft.NavigationBarDestination(icon=ft.Icons.INVENTORY_2_OUTLINED, selected_icon=ft.Icons.INVENTORY_2, label="Estoque"),
+                ft.NavigationBarDestination(icon=ft.Icons.FASTFOOD_OUTLINED, selected_icon=ft.Icons.FASTFOOD, label="Itens"),
+                ft.NavigationBarDestination(icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label="Clientes"),
+                ft.NavigationBarDestination(icon=ft.Icons.ATTACH_MONEY_OUTLINED, selected_icon=ft.Icons.ATTACH_MONEY, label="Finan."),
+                ft.NavigationBarDestination(icon=ft.Icons.HISTORY, selected_icon=ft.Icons.HISTORY, label="Hist."),
+                ft.NavigationBarDestination(icon=ft.Icons.INSIGHTS_OUTLINED, selected_icon=ft.Icons.INSIGHTS, label="Relat."),
+            ],
+            on_change=on_nav_change,
+        )
+
+        # Container principal que segura o Menu Lateral + Conteúdo
+        layout_row = ft.Row(
+            controls=[nav_rail, ft.VerticalDivider(width=1), content],
+            expand=True,
+            spacing=0,
+        )
+
+        # Carrega a view inicial
         from app.views.vendas_view import VendasView
         content.content = VendasView(session, page)
 
-        page.add(
-            ft.Row(
-                controls=[nav, ft.VerticalDivider(width=1), content],
-                expand=True,
-                spacing=0,
-            )
-        )
+        # 3. A FUNÇÃO MÁGICA DA RESPONSIVIDADE
+        def redimensionar(e):
+            # 500 a 600 pixels é o limite padrão para celulares em pé
+            if page.width < 600:
+                # Modo Celular: Esconde menu lateral, mostra menu inferior
+                nav_rail.visible = False
+                page.navigation_bar = nav_bar
+            else:
+                # Modo PC/Tablet: Mostra menu lateral, remove menu inferior
+                nav_rail.visible = True
+                page.navigation_bar = None
+            page.update()
+
+        # Vincula o evento de mudança de tamanho de tela à função
+        page.on_resize = redimensionar
+        
+        # Executa uma vez no início para definir o layout correto de abertura
+        redimensionar(None)
+
+        # Adiciona o layout na página
+        page.add(layout_row)
 
         logger.info("Aplicação Cantina TUFI iniciada com sucesso")
 
@@ -143,7 +156,11 @@ def main(page: ft.Page):
 if __name__ == "__main__":
     try:
         init_db()
-        ft.run(main)
+        ft.app(
+            target=main,
+            view=ft.AppView.FLET_APP,
+            assets_dir="assets",
+        )
     except Exception as ex:
         logger.error(f"Erro ao executar aplicação: {ex}", exc_info=True)
         raise
