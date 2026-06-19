@@ -17,9 +17,6 @@ dependencies = [
     "flet==0.85.1",
     "sqlmodel==0.0.14",
     "SQLAlchemy==2.0.23",
-    "pydantic==2.23.3",
-    "pydantic-core==2.23.3",
-    "pydantic-settings==2.3.0",
     "python-dotenv==1.0.0",
 ]
 
